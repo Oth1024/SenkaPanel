@@ -144,6 +144,11 @@ Senka Panel是一个集成了服务器状态监控，服务器命令行交互，
 
 **应用界面**
 
-![](image-13.png)
+![](image-14.png)
 
 电脑界面Application界面。
+
+![](image-15.png)
+![](image-16.png)
+
+手机界面Application界面。
