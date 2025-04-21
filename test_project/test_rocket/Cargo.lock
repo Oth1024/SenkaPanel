@@ -1540,6 +1540,7 @@ dependencies = [
 name = "test_rocket"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "rocket",
  "serde",
  "serde_json",
