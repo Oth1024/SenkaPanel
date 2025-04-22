@@ -1,12 +1,13 @@
 use bytes::{Buf, Bytes};
 use serde::{Serialize, de::DeserializeOwned};
+use tklog::info;
 use std::path::Path;
 use tokio::{fs::{self, File}, io::AsyncWriteExt};
 
 pub struct ConfigTool;
 
 impl ConfigTool {
-    pub async fn get_config<T>(config_path: &String) -> Result<T, String>
+    pub async fn get_config<T>(config_path: String) -> Result<T, String>
     where
         T: DeserializeOwned,
     {
@@ -30,11 +31,11 @@ impl ConfigTool {
         return Err(String::from(error_message));
     }
 
-    pub async fn set_config<T>(config_path: &String, new_config_object: &T) -> Result<(), String>
+    pub async fn set_config<T>(config_path: String, new_config_object: &T) -> Result<(), String>
     where
         T: Serialize,
     {
-        let path = Path::new(config_path);
+        let path = Path::new(&config_path);
         let dir = path.parent();
         if let Some(file_dir) = dir {
             if !file_dir.is_dir() {
@@ -46,12 +47,18 @@ impl ConfigTool {
             }
             let config_object_to_string = toml::to_string(new_config_object);
             if let Ok(config_string) = config_object_to_string {
-                let try_create_file = File::create(config_path).await;
+                let try_create_file = File::create(&config_path).await;
                 if let Ok(mut file) = try_create_file {
                     let mut buf = Bytes::from(config_string.into_bytes());
                     while buf.has_remaining() {
-                        file.write_buf(&mut buf).await;
+                        let result = file.write_buf(&mut buf).await;
+                        if let Err(write_err) = result {
+                            error!("{}", write_err);
+                            return Err(String::from(write_err.to_string()));
+                        }
                     }
+                    info!(format!("Save config to path:{} success!", config_path));
+                    return Ok(());
                 } 
                 else if let Err(create_failed) = try_create_file {
                     error!("{}", create_failed);
