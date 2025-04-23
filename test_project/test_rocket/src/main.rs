@@ -18,17 +18,17 @@ extern crate rocket;
 #[tokio::main]
 async fn main() {
     initialize();
-    // let test_vec = vec![3];
-    // let test_config = TestConfig
-    // {
-    //     test_one: 2,
-    //     test_two: 3,
-    //     test_vec
-    // };
+    let test_vec = vec![3];
+    let test_config = TestConfig
+    {
+        test_one: 2,
+        test_two: 3,
+        test_vec
+    };
     let config_path = "./target/test.toml";
-    // let result = ConfigTool::set_config::<TestConfig>(String::from(config_path), &test_config).await;
-    let result = ConfigTool::get_config::<TestConfig>(String::from(config_path)).await.unwrap();
-    print!("result: test1:{}", result.test_one);
+    let result = ConfigTool::set_config::<TestConfig>(String::from(config_path), &test_config).await;
+    // let result = ConfigTool::get_config::<TestConfig>(String::from(config_path)).await.unwrap();
+    // print!("result: test1:{}", result.test_one);
 }
 
 fn initialize() {
@@ -36,10 +36,10 @@ fn initialize() {
 }
 
 fn initialize_logger() {
-    LOG.set_console(false)
+    LOG.set_console(true)
     .set_level(LEVEL::Trace)
     .set_format(Format::Time | Format::LevelFlag | Format::ShortFileName)
-    .set_formatter("[{level}] {time} {file}: {message}");
+    .set_formatter("{level} [{time}] [{file}]: {message}");
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
