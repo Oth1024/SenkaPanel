@@ -34,7 +34,7 @@ fn initialize_logger() {
     LOG.set_console(false)
     .set_level(LEVEL::Trace)
     .set_format(Format::Time | Format::LevelFlag | Format::ShortFileName)
-    .set_formatter("{level} {time} {file}: {message}")
+    .set_formatter("[{level}] {time} {file}: {message}")
     .set_cutmode_by_size("./target/TestProject.log", 1024, 10, true);
 }
 
