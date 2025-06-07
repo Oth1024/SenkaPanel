@@ -1,10 +1,10 @@
 /*General container*/
-.home_background {
+.background {
     background-color: #1f1f1f;
     width: 98vw;
 }
 
-.home_title_container {
+.title_container {
     width: 98vw;
     height: 80px;
     display: flex;
@@ -14,7 +14,7 @@
     border-bottom: gray 1px solid;
 }
 
-.body_content_background {
+.content_background {
     width: 98vw;
     height: 90vh;
     background-color:#1f1f1f;
@@ -28,12 +28,12 @@
     list-style: none;
 }
 
-.home_list_tab_left_border {
+.list_tab_left_border {
     border-left: gray 1px solid;
 }
 
     /*General Menu Style*/
-.home_list_tab {
+.list_tab {
     width: 160px;
     height: 80px;
 }
@@ -72,4 +72,47 @@
     display: none;
     width: 100%;
     position: absolute;
+}
+
+/*Button*/
+.senka_button{
+    height: 60px;
+    width: fit-content;
+    background-color: #1f1f1f;
+    border: 1px #EA5E27FF solid;
+    font-size: 24px;
+    border-radius: 2mm;
+    color: #EA5E27FF;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+.senka_button:hover {
+    background-color: #EA5E27FF;
+    color: #1f1f1f;
+}
+
+/*Index Tab*/
+.index_menu {
+    width: 150px;
+    height: 100%;
+    background-color: gray;
+}
+
+.index_menu_item {
+    display: flex;
+    width: auto;
+    height: 60px;
+    justify-content: center;
+    align-items: center;
+    background-color: #1f1f1f;
+    color: gray;
+    margin: 1px;
+    margin-left: 0;
+    margin-top: 0;
+}
+
+.index_menu_item:hover {
+    background-color: #EA5E27FF;
+    color: white;
 }
