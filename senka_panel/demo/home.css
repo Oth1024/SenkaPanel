@@ -1,0 +1,75 @@
+/*General container*/
+.home_background {
+    background-color: #1f1f1f;
+    width: 98vw;
+}
+
+.home_title_container {
+    width: 98vw;
+    height: 80px;
+    display: flex;
+    background-color: #1f1f1f;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: gray 1px solid;
+}
+
+.body_content_background {
+    width: 98vw;
+    height: 90vh;
+    background-color:#1f1f1f;
+}
+
+/*Tab List*/
+    /*Main Menu Style*/
+.horizontal_list {
+    height: 100%;
+    display: flex;
+    list-style: none;
+}
+
+.home_list_tab_left_border {
+    border-left: gray 1px solid;
+}
+
+    /*General Menu Style*/
+.home_list_tab {
+    width: 160px;
+    height: 80px;
+}
+
+.text_center_container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+}
+
+.text_border {
+    border-left: gray 1px solid;
+    border-bottom: gray 1px solid;
+}
+
+.senka_change_color {
+    color: gray;
+}
+
+.senka_change_color:hover {
+    background-color: #EA5E27FF;
+    color: white;
+}
+
+/*Dropdown */
+.dropdown {
+    position: relative;
+}
+
+.dropdown:hover .dropdown_content {
+    display: block;
+}
+
+.dropdown_content {
+    display: none;
+    width: 100%;
+    position: absolute;
+}

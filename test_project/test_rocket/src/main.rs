@@ -24,6 +24,7 @@ async fn startup() -> _ {
     let result = ConfigTool::get_config::<TestConfig>(String::from(config_path)).await.unwrap();
     print!("result: test1:{}", result.test_one);
     rocket::build()
+    .mount("/", routes![test_recall])
 }
 
 fn initialize() {
@@ -43,4 +44,9 @@ pub struct TestConfig {
     pub test_one :u32,
     pub test_two: u32,
     pub test_vec: Vec<u32>
+}
+
+#[get("/test")]
+fn test_recall() -> &'static str {
+    "<head>Test</head>"
 }
