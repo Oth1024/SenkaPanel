@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rocket = { workspace = true }
+rocket_dyn_templates = { workspace = true }
+tokio = { workspace = true }
+tera = { workspace = true }

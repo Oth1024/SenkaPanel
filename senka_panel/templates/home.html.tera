@@ -4,41 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Senka Panel</title>
-    <link rel="stylesheet" href="common.css">
-    <link rel="icon" href="./assets/favicon.ico">
+    <link rel="stylesheet" href="../static/css/common.css">
+    <link rel="icon" href="../static/assets/favicon.ico">
 </head>
 <body class="background">
     <div class="title_container">
         <div style="display: flex; margin-left: 30px;" class="can_select">
-            <img src="./assets/Senka_Icon.png" style="height: auto;">
+            <img src="../static/assets/Senka_Icon.png" style="height: auto;">
             <div style="
                 color: #EA5E27FF;
                 white-space: nowrap;
                 width: fit-content;
                 font-weight: bold;
                 font-size: 40px;">
-                Senka Panel
+                {{senka_panel_title}}
             </div>
         </div>
         <ul class="horizontal_list">
             <li class="list_tab list_tab_left_border">
                 <div class="list_tab senka_change_color text_center_container can_select">
-                    <span>Login</span>
+                    <span>{{login_tab}}</span>
                 </div>
             </li>
             <li class="list_tab list_tab_left_border dropdown">
                 <div class="list_tab senka_change_color text_center_container can_select">
-                    <a>More</a>
+                    <a>{{more_tab}}</a>
                 </div>
                 <div class="dropdown_content">
                     <div class="list_tab senka_change_color text_center_container text_border can_select">
-                        <p>切换到中文</p>                
+                        <p>{{switch_language}}</p>                
                     </div>
                     <div class="list_tab senka_change_color text_center_container text_border can_select">
-                        <a>Source Code</a>                        
+                        <a>{{source_code_tab}}</a>                        
                     </div>
                     <div class="list_tab senka_change_color text_center_container text_border can_select">
-                        <p>About Senka Panel</p>                
+                        <p>{{about_senka_panel_tab}}</p>                
                     </div>
                 </div>
             </li>
@@ -59,7 +59,7 @@
                 width: 55%;
                 display: flex;
                 justify-content: right;">
-                <img src="./assets/Senka-release.png" 
+                <img src="../static/assets/Senka-release.png" 
                     style="
                     display: block;
                     margin-top: auto;
@@ -79,12 +79,12 @@
                         font-size: 80px;
                         color: white;">Panel</span>
                     <span>
-                        <img src="./assets/Senka_Icon.png">
+                        <img src="../static/assets/Senka_Icon.png">
                     </span>
                 </p>
                 <p style="color: gray;">An friendly open-source personal server management platform</p>
                 <p>
-                    <button class="senka_button">Quick Start</button>
+                    <button class="senka_button">{{quick_start_button}}</button>
                 </p>
             </div>
         </div>
@@ -95,7 +95,7 @@
                 align-items: center;">
                 <span style="
                     color: gray;
-                    font-size: 12px;">Powered by Oth1024</span>
+                    font-size: 12px;">{{author_announcement}}</span>
             </p>
         </div>
     </div>

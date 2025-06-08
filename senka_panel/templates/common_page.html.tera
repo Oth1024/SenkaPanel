@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Senka Panel</title>
-    <link rel="stylesheet" href="common.css">
-    <link rel="icon" href="./assets/favicon.ico">
+    <link rel="stylesheet" href="../static/css/common.css">
+    <link rel="icon" href="../static/assets/favicon.ico">
 </head>
 <body class="background">
     <div class="title_container">
         <div style="display: flex; margin-left: 30px;" class="can_select">
-            <img src="./assets/Senka_Icon.png" style="height: auto;">
+            <img src="../static/assets/Senka_Icon.png" style="height: auto;">
             <div style="
                 color: #EA5E27FF;
                 white-space: nowrap;
