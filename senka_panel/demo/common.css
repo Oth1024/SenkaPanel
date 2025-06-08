@@ -20,6 +20,11 @@
     background-color:#1f1f1f;
 }
 
+/*Select*/
+.can_select {
+    cursor: pointer;
+}
+
 /*Tab List*/
     /*Main Menu Style*/
 .horizontal_list {
@@ -55,8 +60,9 @@
 }
 
 .senka_change_color:hover {
-    background-color: #EA5E27FF;
-    color: white;
+    background-color: #1f1f1f;
+    color: #EA5E27FF;
+    border: 1px #EA5E27FF solid;
 }
 
 /*Dropdown */
@@ -85,6 +91,8 @@
     color: #EA5E27FF;
     margin-top: 20px;
     padding: 10px;
+    padding-left: 20px;
+    padding-right: 20px;
 }
 
 .senka_button:hover {
@@ -103,16 +111,28 @@
     display: flex;
     width: auto;
     height: 60px;
-    justify-content: center;
+    justify-content: left;
+    padding-left: 20%;
     align-items: center;
     background-color: #1f1f1f;
     color: gray;
     margin: 1px;
     margin-left: 0;
     margin-top: 0;
+    border: 1px solid #00000000;
 }
 
 .index_menu_item:hover {
+    background-color: #1f1f1f;
+    color: #EA5E27FF;
+    border: 1px #EA5E27FF solid;
+}
+
+.radio_select {
+    display: none;
+}
+
+.index_menu_item:has(.radio_select:checked ) {
     background-color: #EA5E27FF;
     color: white;
 }
