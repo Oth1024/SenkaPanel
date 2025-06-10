@@ -8,3 +8,4 @@ rocket = { workspace = true }
 rocket_dyn_templates = { workspace = true }
 tokio = { workspace = true }
 tera = { workspace = true }
+once_cell = { workspace = true }

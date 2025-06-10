@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use tokio;
+use once_cell::sync::OnceCell;
 
+#[derive(PartialEq)]
 pub enum Language {
     ZhCn,
     EnUs
@@ -31,16 +32,11 @@ impl LanguageHelper {
         }
         return String::from("Not Found");
     }
+
+    pub fn switch_current_lang(&mut self, current_language: Language) {
+        self.current_lang = current_language;
+    }
 }
 
 // Static lang management
-// TODO
-// static 
-
-// pub fn get_string_from_str(string_key: &str) -> String {
-
-// }
-
-// pub fn get_string_from_string(string_key: String) -> String {
-
-// }
+static LANGUAGE_HELPER: OnceCell<LanguageHelper> = OnceCell::new();

@@ -1647,6 +1647,7 @@ dependencies = [
 name = "server"
 version = "0.1.0"
 dependencies = [
+ "once_cell",
  "rocket",
  "rocket_dyn_templates",
  "tera",
