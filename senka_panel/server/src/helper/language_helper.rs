@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 use once_cell::sync::OnceCell;
+use std::path::Path;
 
 #[derive(PartialEq)]
 pub enum Language {
@@ -13,6 +14,15 @@ pub struct LanguageHelper {
 }
 
 impl LanguageHelper {
+    pub fn new() -> Self {
+        let lang_string_res = get_local_lang_string_res();
+        let instance = LanguageHelper {
+            current_lang: Language::EnUs,
+            lang_res: lang_string_res
+        };
+        instance
+    }
+
     pub fn get_current_lang(&self) -> &Language {
         return &self.current_lang;
     }
@@ -36,6 +46,12 @@ impl LanguageHelper {
     pub fn switch_current_lang(&mut self, current_language: Language) {
         self.current_lang = current_language;
     }
+}
+
+fn get_local_lang_string_res() -> HashMap<String, String> {
+    let mut lang_res = HashMap::<String, String>::new();
+
+    lang_res
 }
 
 // Static lang management

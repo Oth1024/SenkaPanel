@@ -1650,8 +1650,10 @@ dependencies = [
  "once_cell",
  "rocket",
  "rocket_dyn_templates",
+ "serde",
  "tera",
  "tokio",
+ "toml",
 ]
 
 [[package]]
