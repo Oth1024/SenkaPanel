@@ -12,3 +12,6 @@ fn start_up() -> _ {
     .attach(Template::fairing())
     .mount("/", routes![home_page])
 }
+
+#[cfg(test)]
+mod tests;
