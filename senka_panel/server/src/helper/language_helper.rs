@@ -19,6 +19,12 @@ pub enum Language {
 
 impl Display for Language {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self == &Language::ZhCn {
+            write!(f, "ZhCn")
+        }
+        else {
+            write!(f, "EnUs")
+        }
     }
 }
 
@@ -111,16 +117,18 @@ fn get_local_lang_string_res() -> (HashMap<String, String>, HashMap<String, Stri
                 if let Ok(lang_res) =
                     toml::from_str::<HashMap<String, HashMap<String, String>>>(&content)
                 {
-                    lang_res_zh = lang_res[ZHCN_LANG_RES].clone();
-                    lang_res_en = lang_res[ENUS_LANG_RES].clone();
-                } else {
-                    let mut new_res = HashMap::<String, HashMap<String, String>>::new();
-                    new_res.insert(String::from(ZHCN_LANG_RES), HashMap::new());
-                    new_res.insert(String::from(ENUS_LANG_RES), HashMap::new());
-                    if let Ok(new_content) = toml::to_string(&new_res) {
-                        if let Ok(_) = res_file.write_all(new_content.as_bytes()) {}
+                    if lang_res.contains_key(ZHCN_LANG_RES) && lang_res.contains_key(ENUS_LANG_RES) {
+                        lang_res_zh = lang_res[ZHCN_LANG_RES].clone();
+                        lang_res_en = lang_res[ENUS_LANG_RES].clone();
+                        return (lang_res_zh, lang_res_en);
                     }
                 }
+            }
+            let mut new_res = HashMap::<String, HashMap<String, String>>::new();
+            new_res.insert(String::from(ZHCN_LANG_RES), HashMap::new());
+            new_res.insert(String::from(ENUS_LANG_RES), HashMap::new());
+            if let Ok(new_content) = toml::to_string(&new_res) {
+                if let Ok(_) = res_file.write_all(new_content.as_bytes()) {}
             }
         }
     }
