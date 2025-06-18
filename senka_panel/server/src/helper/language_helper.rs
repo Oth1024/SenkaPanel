@@ -50,16 +50,16 @@ impl LanguageHelper {
         return &self.current_lang;
     }
 
-    pub fn get_string_from_str(&self, string_key: &str, language: &Language) -> String {
+    pub fn get_string_from_str(&self, string_key: &str) -> String {
         let key = String::from(string_key);
 
-        if language == &Language::ZhCn {
+        if &self.current_lang == &Language::ZhCn {
             if self.lang_res_ch.contains_key(&key) {
                 return String::from(&self.lang_res_ch[&key]);
             }
         }
 
-        if language == &Language::EnUs {
+        if &self.current_lang == &Language::EnUs {
             if self.lang_res_en.contains_key(&key) {
                 return String::from(&self.lang_res_en[&key]);
             }
@@ -68,16 +68,16 @@ impl LanguageHelper {
         return String::from("Not Found");
     }
 
-    pub fn get_string_from_string(&self, string_key: &str, language: &Language) -> String {
+    pub fn get_string_from_string(&self, string_key: &str) -> String {
         let key = String::from(string_key);
 
-        if language == &Language::ZhCn {
+        if &self.current_lang == &Language::ZhCn {
             if self.lang_res_ch.contains_key(&key) {
                 return String::from(&self.lang_res_ch[&key]);
             }
         }
 
-        if language == &Language::EnUs {
+        if &self.current_lang == &Language::EnUs {
             if self.lang_res_en.contains_key(&key) {
                 return String::from(&self.lang_res_en[&key]);
             }

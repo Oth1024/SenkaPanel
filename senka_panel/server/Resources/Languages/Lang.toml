@@ -1,3 +1,19 @@
 [ZhCn_Lang]
+senka_panel_title = "千桦面板"
+login_tab = "登录"
+more_tab = "更多"
+switch_language = "Switch to En"
+source_code_tab = "源代码"
+about_senka_panel_tab = "关于千桦面板"
+quick_start_button = "快速开始"
+author_announcement = "由Oth1024提供支持"
 
 [EnUs_Lang]
+senka_panel_title = "Senka Panel"
+login_tab = "Login"
+more_tab = "More"
+switch_language = "切换为中文"
+source_code_tab = "Source Code"
+about_senka_panel_tab = "About Senka Panel"
+quick_start_button = "Quick Start"
+author_announcement = "Powered by Oth1024"
