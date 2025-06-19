@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Senka Panel</title>
-    <link rel="stylesheet" href="../static/css/common.css">
-    <link rel="icon" href="../static/assets/favicon.ico">
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="icon" href="/assets/favicon.ico">
 </head>
 <body class="background">
     <div class="title_container">
         <div style="display: flex; margin-left: 30px;" class="can_select">
-            <img src="../static/assets/Senka_Icon.png" style="height: auto;">
+            <img src="/assets/Senka_Icon.png" style="height: auto;">
             <div style="
                 color: #EA5E27FF;
                 white-space: nowrap;
@@ -59,7 +59,7 @@
                 width: 55%;
                 display: flex;
                 justify-content: right;">
-                <img src="../static/assets/Senka-release.png" 
+                <img src="/assets/Senka-release.png" 
                     style="
                     display: block;
                     margin-top: auto;
@@ -79,7 +79,7 @@
                         font-size: 80px;
                         color: white;">Panel</span>
                     <span>
-                        <img src="../static/assets/Senka_Icon.png">
+                        <img src="/assets/Senka_Icon.png">
                     </span>
                 </p>
                 <p style="color: gray;">An friendly open-source personal server management platform</p>
