@@ -82,7 +82,7 @@
                         <img src="/assets/Senka_Icon.png">
                     </span>
                 </p>
-                <p style="color: gray;">An friendly open-source personal server management platform</p>
+                <p style="color: gray;">A friendly open-source personal server management platform</p>
                 <p>
                     <button class="senka_button">{{quick_start_button}}</button>
                 </p>

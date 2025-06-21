@@ -34,7 +34,7 @@
 }
 
 .list_tab_left_border {
-    border-left: gray 1px solid;
+
 }
 
     /*General Menu Style*/
@@ -48,11 +48,11 @@
     justify-content: center;
     align-items: center;
     font-size: 16px;
+    font-weight: bold;
 }
 
 .text_border {
-    border-left: gray 1px solid;
-    border-bottom: gray 1px solid;
+    font-weight: bold;
 }
 
 .senka_change_color {
@@ -72,6 +72,8 @@
 
 .dropdown:hover .dropdown_content {
     display: block;
+    border: gray 1px solid;
+    border-top: 0;
 }
 
 .dropdown_content {
