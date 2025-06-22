@@ -1,13 +1,25 @@
 use std::collections::HashMap;
 
-use rocket::{self, get};
+use rocket::{self, get, response::Redirect};
 use rocket_dyn_templates::Template;
-use crate::{
-    helper::language_helper::LANGUAGE_HELPER,
-};
+use crate::helper::language_helper::{Language, LANGUAGE_HELPER};
 
 #[get("/")]
-pub fn home_page_func() -> Template {
+pub fn home_page_default() {
+    Redirect::to("/En");
+}
+
+#[get("/En")]
+pub fn home_page_en() -> Template {
+    home_page_func(Language::EnUs)
+}
+
+#[get("/Zh")]
+pub fn home_page_zh() -> Template {
+    home_page_func(Language::ZhCn)
+}
+
+fn home_page_func(lang:Language) -> Template {
     let mut context = HashMap::new();
 
     let language_helper = &LANGUAGE_HELPER;
