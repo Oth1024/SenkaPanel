@@ -30,7 +30,6 @@ impl Display for Language {
 
 // Language helper
 pub struct LanguageHelper {
-    pub current_lang: Language,
     pub lang_res_ch: HashMap<String, String>,
     pub lang_res_en: HashMap<String, String>,
 }
@@ -39,27 +38,22 @@ impl LanguageHelper {
     pub fn new() -> Self {
         let lang_string_res = get_local_lang_string_res();
         let instance = LanguageHelper {
-            current_lang: Language::EnUs,
             lang_res_ch: lang_string_res.0,
             lang_res_en: lang_string_res.1,
         };
         instance
     }
 
-    pub fn get_current_lang(&self) -> &Language {
-        return &self.current_lang;
-    }
-
-    pub fn get_string_from_str(&self, string_key: &str) -> String {
+    pub fn get_string_from_str(&self, string_key: &str, language: &Language) -> String {
         let key = String::from(string_key);
 
-        if &self.current_lang == &Language::ZhCn {
+        if language == &Language::ZhCn {
             if self.lang_res_ch.contains_key(&key) {
                 return String::from(&self.lang_res_ch[&key]);
             }
         }
 
-        if &self.current_lang == &Language::EnUs {
+        if language == &Language::EnUs {
             if self.lang_res_en.contains_key(&key) {
                 return String::from(&self.lang_res_en[&key]);
             }
@@ -68,26 +62,22 @@ impl LanguageHelper {
         return String::from("Not Found");
     }
 
-    pub fn get_string_from_string(&self, string_key: &str) -> String {
+    pub fn get_string_from_string(&self, string_key: &str, language: &Language) -> String {
         let key = String::from(string_key);
 
-        if &self.current_lang == &Language::ZhCn {
+        if language == &Language::ZhCn {
             if self.lang_res_ch.contains_key(&key) {
                 return String::from(&self.lang_res_ch[&key]);
             }
         }
 
-        if &self.current_lang == &Language::EnUs {
+        if language == &Language::EnUs {
             if self.lang_res_en.contains_key(&key) {
                 return String::from(&self.lang_res_en[&key]);
             }
         }
 
         return String::from("Not Found");
-    }
-
-    pub fn switch_current_lang(&mut self, current_language: Language) {
-        self.current_lang = current_language;
     }
 }
 
