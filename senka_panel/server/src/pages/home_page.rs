@@ -10,8 +10,8 @@ use crate::{
 };
 
 #[get("/")]
-pub fn home_page_default() {
-    Redirect::to("/En");
+pub fn home_page_default() -> Redirect {
+    Redirect::to("/En")
 }
 
 #[get("/En")]
@@ -28,15 +28,15 @@ fn home_page_func(lang:Language) -> Template {
     let mut context = HashMap::new();
 
     let language_helper = &LANGUAGE_HELPER;
-    let senka_panel_title = language_helper.get_string_from_str("senka_panel_title", &Language::EnUs);
+    let senka_panel_title = language_helper.get_string_from_str("senka_panel_title", &lang);
     print!("{}", &senka_panel_title);
-    let login_tab = language_helper.get_string_from_str("login_tab", &Language::EnUs);
-    let more_tab = language_helper.get_string_from_str("more_tab", &Language::EnUs);
-    let switch_language = language_helper.get_string_from_str("switch_language", &Language::EnUs);
-    let source_code_tab = language_helper.get_string_from_str("source_code_tab", &Language::EnUs);
-    let about_senka_panel_tab = language_helper.get_string_from_str("about_senka_panel_tab", &Language::EnUs);
-    let quick_start_button = language_helper.get_string_from_str("quick_start_button", &Language::EnUs);
-    let author_announcement = language_helper.get_string_from_str("author_announcement", &Language::EnUs);
+    let login_tab = language_helper.get_string_from_str("login_tab", &lang);
+    let more_tab = language_helper.get_string_from_str("more_tab", &lang);
+    let switch_language = language_helper.get_string_from_str("switch_language", &lang);
+    let source_code_tab = language_helper.get_string_from_str("source_code_tab", &lang);
+    let about_senka_panel_tab = language_helper.get_string_from_str("about_senka_panel_tab", &lang);
+    let quick_start_button = language_helper.get_string_from_str("quick_start_button", &lang);
+    let author_announcement = language_helper.get_string_from_str("author_announcement", &lang);
 
     context.insert("senka_panel_title", &senka_panel_title);
     context.insert("login_tab", &login_tab);
