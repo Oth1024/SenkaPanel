@@ -1,37 +1,26 @@
 <h1>
-    <span style="
-        color: #EA5E27FF;
-        font-weight: bold;
-        font-size: 32px">千桦</span>
-    <span>面板</span>
-    <span style="
-        color:gray">|</span>
-    <span style="
-        color: #EA5E27FF;
-        font-weight: bold;
-        font-size: 32px;">Senka</span>
-    <span>Panel</span>
+    <font color= "#EA5E27" size="6">千桦</font>
+    <font size="6">面板</font>
+    <font color= "#EA5E27" size="6">Senka</font>
+    <font size="6">Panel</font>
     <p>
-        <span style="
-            color:gray;
-            font-size:14px">A user friendly personal server management website project</span>
+        <font color= "gray" size="2">A user friendly personal server management website project</font>
     </p>
 </h1>
 <h2>
-    <span style="
-        color: #EA5E27FF;
-        font-weight: bold;
-        font-size: 16px">1.</span>
+    <font color= "#EA5E27" size="3">1.</font>
     <span>声明</span>
 </h2>
 <p>
     <span>
         本项目致力于开发一个面向
     </span>
-    <i style="
-        color: #EA5E27FF;">
-        个人/家庭用户
-    </i>
+    <font color= "#EA5E27">
+        <i style="
+            color: #EA5E27FF;">
+            个人/家庭用户
+        </i>
+    </font>
     <span>
         的服务器管理工具，其中提供各项常用家用服务器和个人游戏服务器的常用功能。
     </span>
@@ -50,25 +39,16 @@
 |x|多平台支持|
 
 <h2>
-    <span style="
-        color: #EA5E27FF;
-        font-weight: bold;
-        font-size: 16px">2.</span>
+    <font color= "#EA5E27" size="3">1.</font>
     <span>快速开始</span>
 </h2>
 
 <h2>
-    <span style="
-        color: #EA5E27FF;
-        font-weight: bold;
-        font-size: 16px">3.</span>
+    <font color= "#EA5E27" size="3">1.</font>
     <span>高级配置</span>
 </h2>
 
 <h2>
-    <span style="
-        color: #EA5E27FF;
-        font-weight: bold;
-        font-size: 16px">4.</span>
+    <font color= "#EA5E27" size="3">1.</font>
     <span>写在最后</span>
 </h2>
