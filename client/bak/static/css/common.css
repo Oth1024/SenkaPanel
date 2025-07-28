@@ -57,6 +57,7 @@
 
 .senka_change_color {
     color: gray;
+    background-color:#1f1f1f;
 }
 
 .senka_change_color:hover {

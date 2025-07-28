@@ -21,12 +21,12 @@
             </div>
         </div>
         <ul class="horizontal_list">
-            <li class="list_tab list_tab_left_border">
+            <li class="list_tab_left_border">
                 <div class="list_tab senka_change_color text_center_container can_select">
                     <span>{{login_tab}}</span>
                 </div>
             </li>
-            <li class="list_tab list_tab_left_border dropdown">
+            <li class="list_tab_left_border dropdown">
                 <div class="list_tab senka_change_color text_center_container can_select">
                     <a>{{more_tab}}</a>
                 </div>
