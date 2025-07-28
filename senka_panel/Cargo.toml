@@ -3,10 +3,8 @@ members = ["server"]
 
 [workspace.dependencies]
 rocket = { version = "0.5.1", features = ["secrets"] }
-rocket_dyn_templates = { version = "0.1.0", features = ["tera"] }
 tokio = { version = "1.45.1" }
-tera = { version = "1.20.0" }
 once_cell = { version = "1.21.3" }
 serde = { version = "1.0.219" }
 toml = { version = "0.8.23" }
-yew ={ version = "0.21.0" }
+rocket_ws ={ version = "0.1.1"}

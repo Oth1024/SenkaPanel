@@ -5,9 +5,8 @@ edition = "2024"
 
 [dependencies]
 rocket = { workspace = true }
-rocket_dyn_templates = { workspace = true }
+rocket_ws ={ workspace = true }
 tokio = { workspace = true }
-tera = { workspace = true }
 once_cell = { workspace = true }
 toml = { workspace = true }
 serde = { workspace = true }

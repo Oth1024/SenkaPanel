@@ -1,0 +1,5 @@
+[workspace]
+members = [ "applications", "files","home", "monitors", "network", "shares", "shell"]
+
+[workspace.dependencies]
+yew = { version = "0.21", features = ["csr"] }

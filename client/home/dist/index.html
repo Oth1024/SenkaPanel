@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><link rel="modulepreload" href="/home-fee05ee8638ebe2a.js" crossorigin="anonymous" integrity="sha384-JJo/Pq7lBQkSS2KRsIsONnWKK143+2tReseeZ/MpW3A+27iCu0k9Do9cfa6H8iRe"><link rel="preload" href="/home-fee05ee8638ebe2a_bg.wasm" crossorigin="anonymous" integrity="sha384-T8hKSQZ1lftaG8Vvf0M7IGoxjktstG81QIaDTh6+yHjksRCr1EBSnlwXLVjLROji" as="fetch" type="application/wasm"></head>
+<body>
+<script type="module">
+import init, * as bindings from '/home-fee05ee8638ebe2a.js';
+const wasm = await init({ module_or_path: '/home-fee05ee8638ebe2a_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script></body>
+</html>
