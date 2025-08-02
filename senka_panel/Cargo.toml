@@ -8,4 +8,6 @@ once_cell = { version = "1.21.3" }
 serde = { version = "1.0.219" }
 serde_json = { version = "1.0.142" }
 toml = { version = "0.8.23" }
-rocket_ws ={ version = "0.1.1"}
+rocket_ws = { version = "0.1.1" }
+dashmap = { version = "6.1.0" }
+uuid = { version = "1.17.0" }

@@ -43,3 +43,9 @@ impl ShellCommand {
         self.command.contains("sudo")
     }
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct ShellCommandResponse {
+    pub message: String,
+    pub hold_on: bool,
+}
