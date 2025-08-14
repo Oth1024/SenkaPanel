@@ -3,8 +3,7 @@ use std::path::Path;
 
 pub mod Protocol;
 pub mod Routes;
-pub mod Executor;
-pub mod Once;
+pub mod Tool;
 
 use Routes::Shell::ssh_stream;
 

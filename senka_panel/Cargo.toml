@@ -11,3 +11,4 @@ toml = { version = "0.8.23" }
 rocket_ws = { version = "0.1.1" }
 dashmap = { version = "6.1.0" }
 uuid = { version = "1.17.0" }
+russh = { version = "0.54.1" }
