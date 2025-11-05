@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+    </head>
+    <body>
+        <div>
+            <label>User:</label>
+            <input type="text" id="user"/>
+        </div>
+        <div>
+            <label>Password:</label>
+            <input type="password" id="password"/>
+        </div>
+        <div>
+            <button id="login">login</button>
+        </div>
+        <div id="result"></div>
+
+        <script>
+            const user_name_input = document.getElementById("user");
+            const user_pwd_input = document.getElementById("password");
+            const login_button = document.getElementById("login");
+            const result_div = document.getElementById("result");
+
+            login_button.addEventListener("click", async () =>
+            {
+                const username = user_name_input.textContent;
+                const password = user_pwd_input.textContent;
+
+                try
+                {
+                    const response = await fetch(
+                        "127.0.0.1/login",
+                        {
+                            method: "post",
+                            headers:{
+                                "Content-Type": "application/json"
+                            },
+                            body:JSON.stringify({
+                                username: username,
+                                password: password
+                            }),
+                            mode: "cors"
+                        }
+                    );
+                    const result = await response.json();
+                    if (result.success){
+                        result_div.textContent = result.message;
+                    }
+                }
+                catch(exception)
+                {
+                    
+                }
+            });
+        </script>
+    </body>
+</html>

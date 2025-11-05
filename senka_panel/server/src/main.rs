@@ -12,5 +12,5 @@ fn start_up() -> _ {
     rocket::build()
 
     // Websocket
-    .mount("/", routes!(ssh_stream))
+    // .mount("/", routes!(ssh_stream))
 }
