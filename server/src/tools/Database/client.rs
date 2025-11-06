@@ -14,5 +14,6 @@ pub fn InitializeDatabaseClient(sqlite_file_path: &str, max_connection_count: u3
     DB_CLIENT_POOL.set(Arc::new(Pool::builder()
         .max_size(max_connection_count)
         .build(manager)
-        .unwrap()));
+        .expect(format!("Sql initialize error with file path[{}] max_connection[{}]!",
+        sqlite_file_path, max_connection_count).as_str())));
 }
