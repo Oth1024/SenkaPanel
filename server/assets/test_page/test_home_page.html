@@ -33,15 +33,15 @@
                 try
                 {
                     const response = await fetch(
-                        "127.0.0.1/login",
+                        "127.0.0.1:8000/api/user_login",
                         {
                             method: "post",
                             headers:{
                                 "Content-Type": "application/json"
                             },
                             body:JSON.stringify({
-                                username: username,
-                                password: password
+                                user_name: username,
+                                passwd_hash: password
                             }),
                             mode: "cors"
                         }
