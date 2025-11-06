@@ -1,7 +1,9 @@
-[workspace]
-members = ["server"]
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
 
-[workspace.dependencies]
+[dependencies]
 rocket = { version = "0.5.1", features = ["secrets"] }
 tokio = { version = "1.45.1" }
 once_cell = { version = "1.21.3" }
