@@ -13,14 +13,14 @@ pub struct LoginUserResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RegisterUserRequest {
+pub struct RegistUserRequest {
     pub email_addr: String,
     pub user_name: String,
     pub passwd_hash: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RegisterUserResponse {
+pub struct RegistUserResponse {
     pub success: bool,
     pub message: String,
 }
