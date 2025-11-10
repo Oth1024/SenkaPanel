@@ -2,9 +2,6 @@ use rocket::{self, launch, routes};
 
 use crate::{
     routes::{Login::post_login, Regist::post_regist},
-    tools::{
-        database::client::initialize_database_client, logger::logger_factory::initialize_logger,
-    },
 };
 
 pub mod guards;
@@ -19,6 +16,6 @@ fn start_up() -> _ {
 }
 
 fn initialize() {
-    initialize_logger();
+    // initialize_logger();
     // initialize_database_client(sqlite_file_path, max_connection_count);
 }
