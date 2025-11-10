@@ -1,7 +1,6 @@
 use once_cell::sync::OnceCell;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::{Connection, Result};
 use std::sync::Arc;
 
 pub static DB_CLIENT_POOL: OnceCell<Arc<Pool<SqliteConnectionManager>>> = OnceCell::new();
@@ -20,5 +19,5 @@ pub fn initialize_database_client(sqlite_file_path: &str, max_connection_count: 
                 )
                 .as_str(),
             ),
-    ));
+    )).unwrap();
 }

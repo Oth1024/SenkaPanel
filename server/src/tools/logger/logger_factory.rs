@@ -1,11 +1,7 @@
 use chrono::Local;
 use log::{Level, Record};
 use std::io::Write;
-use std::{
-    file,
-    process::id,
-    thread::{self, ThreadId},
-};
+use std::thread;
 
 pub struct Logger {
     crate_name: &'static str,
