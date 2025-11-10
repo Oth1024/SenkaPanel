@@ -4,6 +4,7 @@ use crate::{
     routes::{Login::post_login, Regist::post_regist},
 };
 
+pub mod common_definitions;
 pub mod guards;
 pub mod protocol;
 pub mod routes;
