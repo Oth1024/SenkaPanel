@@ -1,10 +1,8 @@
-use rusqlite::Row;
+use rusqlite::{Error, Row};
 
 pub trait FromRow {
-    fn from_row(row: &Row) -> Self;
+    fn from_row(row: &Row) -> Result<Self, Error> where Self: Sized;
 }
-
 
 #[derive(Debug)]
-pub struct UserEntity {
-}
+pub struct UserEntity {}

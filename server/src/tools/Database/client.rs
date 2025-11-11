@@ -1,7 +1,7 @@
 use once_cell::sync::{Lazy, OnceCell};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use std::sync::Arc;
+use std::{fmt::format, sync::Arc};
 
 use crate::{
     common_definitions::senka_error::{SenkaError, SenkaErrorCode},
@@ -112,7 +112,16 @@ impl Db {
                 if let Ok(mut statement) = get_statement_success {
                     let execution_result = statement.query_map([], |row| T::from_row(row));
                     if let Ok(rows) = execution_result {
-                        
+                        let mut result = Vec::<T>::new();
+                        for row in rows{
+                            if let Ok(row_content) = row {
+                                result.push(row_content);                                
+                            }
+                            else {
+                                return Err(SenkaError::new(SenkaErrorCode::Inner, String::from("Row inner format error")));
+                            }
+                        }
+                        return Ok(result);
                     }
                     else {
                         Err(SenkaError::new(SenkaErrorCode::Arguement, execution_result.err().unwrap().to_string()))
