@@ -1,13 +1,15 @@
 use crate::common_definitions::senka_error::SenkaError;
 
-pub trait SqlBuilder {
+pub trait SqlExecutable {
     fn build(&self) -> Result<String, SenkaError>;
 }
 
-pub struct SelectBuilder;
+pub struct Queryable;
 
-pub struct InsertBuilder;
+pub struct Insertable;
 
-pub struct UpdateBuilder;
+pub struct Updateable;
 
-pub struct DeleteBuilder;
+pub struct Deleteable;
+
+pub struct Storageable;

@@ -6,7 +6,7 @@ use std::{fmt::format, sync::Arc};
 use crate::{
     common_definitions::senka_error::{SenkaError, SenkaErrorCode},
     tools::{
-        database::{entities::FromRow, sql_builder::{self, SelectBuilder, SqlBuilder}},
+        database::{entities::FromRow, sql_builder::{self, Deleteable, Insertable, Queryable, SqlExecutable, Updateable}},
         logger::logger_factory::{self, SenkaLogger},
     },
 };
@@ -54,27 +54,39 @@ impl Db {
     /// 查询数据
     /// # 参数
     ///     table_name: 表名称
-    pub fn select(table_name: &'static str) -> SelectBuilder {}
+    pub fn select(table_name: &'static str) -> Queryable {
+        // TODO
+        Queryable
+    }
 
     /// 插入数据
     /// # 参数
     ///     table_name: 表名称
-    pub fn insert(table_name: &'static str) -> InsertBuilder {}
+    pub fn insert(table_name: &'static str) -> Insertable {
+        // TODO
+        Insertable
+    }
 
     /// 更新数据
     /// # 参数
     ///     table_name: 表名称
-    pub fn update(table_name: &'static str) -> UpdateBuilder {}
+    pub fn update(table_name: &'static str) -> Updateable {
+        // TODO
+        Updateable
+    }
 
     /// 删除数据
     /// # 参数
     ///     table_name: 表名称
-    pub fn delete(table_name: &'static str) -> DeleteBuilder {}
+    pub fn delete(table_name: &'static str) -> Deleteable {
+        // TODO
+        Deleteable
+    }
 
     /// 执行sql语句
     /// # 参数
     ///     sql: sql语句
-    pub fn execute_sql(sql: &impl SqlBuilder) -> Result<(), SenkaError> {
+    pub fn execute_sql(sql: &impl SqlExecutable) -> Result<(), SenkaError> {
         let build_result = sql.build();
         if let Ok(sql_token) = build_result {
             if let Ok(connection) = get_pool().get() {
@@ -104,7 +116,7 @@ impl Db {
     /// 执行sql语句并等待结果
     /// # 参数
     ///     sql: sql语句
-    pub fn execute_sql_with_result<T: FromRow + 'static >(sql: &impl SqlBuilder) -> Result<Vec<T>, SenkaError> {
+    pub fn execute_sql_with_result<T: FromRow + 'static >(sql: &impl SqlExecutable) -> Result<Vec<T>, SenkaError> {
         let build_result = sql.build();
         if let Ok(sql_token) = build_result {
             if let Ok(connection) = get_pool().get() {
