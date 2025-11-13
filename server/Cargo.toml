@@ -10,9 +10,7 @@ rocket_ws = { version = "0.1.1" }
 tokio = { version = "1.45.1" }
 
 # database
-rusqlite = { version = "0.37.0", features = ["bundled", "chrono"] }
-r2d2 = { version = "0.8.10" }
-r2d2_sqlite = { version = "0.31.0" }
+sea-orm = { version = "2.0.0-rc", features = [ "sqlx-sqlite", "runtime-tokio-native-tls", "macros", "with-chrono" ] }
 
 # logger
 log = { version = "0.4" }
