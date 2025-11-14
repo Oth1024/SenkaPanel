@@ -4,6 +4,8 @@ use log::LevelFilter;
 use log4rs::{Config, append::{console::ConsoleAppender, rolling_file::{RollingFileAppender, policy::{Policy, compound::{CompoundPolicy, roll::fixed_window::FixedWindowRoller, trigger::size::SizeTrigger}}}}, config::{Appender, Root}, encode::pattern::{self, PatternEncoder}};
 use rocket::config::LogLevel;
 
+use crate::common_definitions::senka_error::SenkaError;
+
 // logger 定义
 #[derive(Debug)]
 pub struct SenkaLogger {
@@ -55,6 +57,10 @@ impl SenkaLogger {
 
     pub fn error(&self, message: impl Display) {
         log::error!(target: self.target().as_str(), "{}", message)
+    }
+
+    pub fn log_error(&self, senka_error: &SenkaError) {
+        log::error!(target: self.target().as_str(), "Error Code:[{}],Message:{}", senka_error.senka_error_code, senka_error.error_message)
     }
 }
 
