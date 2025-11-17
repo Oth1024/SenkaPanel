@@ -46,20 +46,6 @@ impl SenkaError {
         }
     }
 
-    pub fn from_message(error_message: String) -> Self {
-        SenkaError {
-            senka_error_code: SenkaErrorCode::Inner,
-            error_message: String::from(error_message),
-        }
-    }
-
-    pub fn from_err(senka_error_code: SenkaErrorCode) -> Self {
-        SenkaError {
-            error_message: senka_error_code.to_string(),
-            senka_error_code,
-        }
-    }
-
     pub fn null() -> Self {
         let error = SenkaErrorCode::Unknown;
         SenkaError {

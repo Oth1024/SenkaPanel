@@ -1,4 +1,4 @@
-use std::{fmt::Display, fs::create_dir_all, path::Path, panic::Location};
+use std::{fmt::Display, fs::create_dir_all, panic::Location, path::Path, sync::Arc};
 
 use log::LevelFilter;
 use log4rs::{Config, append::{console::ConsoleAppender, rolling_file::{RollingFileAppender, policy::{Policy, compound::{CompoundPolicy, roll::fixed_window::FixedWindowRoller, trigger::size::SizeTrigger}}}}, config::{Appender, Root}, encode::pattern::{self, PatternEncoder}};

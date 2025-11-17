@@ -1,1 +1,1 @@
-pub const DEFAULT_CONFIG_DIRECTORY: &'static str = "./configs";
+pub const DEFAULT_CONFIG_DIRECTORY: &'static str = "./configs/";
