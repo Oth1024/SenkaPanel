@@ -1,10 +1,13 @@
-use std::{fmt::Display, fs::create_dir_all, panic::Location, path::Path, sync::Arc};
+use std::{fmt::Display, fs::create_dir_all, panic::Location, path::Path, sync::{Arc, atomic::AtomicBool}};
 
 use log::LevelFilter;
 use log4rs::{Config, append::{console::ConsoleAppender, rolling_file::{RollingFileAppender, policy::{Policy, compound::{CompoundPolicy, roll::fixed_window::FixedWindowRoller, trigger::size::SizeTrigger}}}}, config::{Appender, Root}, encode::pattern::{self, PatternEncoder}};
 use rocket::config::LogLevel;
 
 use crate::common_definitions::senka_error::SenkaError;
+
+// logger初始化全局标识
+static LOGGER_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 // logger 定义
 #[derive(Debug)]
@@ -24,43 +27,43 @@ impl SenkaLogger {
 
     // Trace
     pub fn trace(&self, message: impl Display) {
-        log::trace!(target: self.target().as_str(), "{}", message)
+        do_log(|| log::trace!(target: self.target().as_str(), "{}", message))
     }
 
     pub fn trace_in(&self, method: &'static str) {
-        self.trace(format!("Enter [{}]", method));
+        do_log(|| self.trace(format!("Enter [{}]", method)));
     }
 
     pub fn trace_out(&self, method: &'static str) {
-        self.trace(format!("Leave [{}]", method));
+        do_log(|| self.trace(format!("Leave [{}]", method)));
     }
 
     pub fn debug(&self, message: impl Display) {
-        log::debug!(target: self.target().as_str(), "{}", message)
+        do_log(|| log::debug!(target: self.target().as_str(), "{}", message));
     }
 
     pub fn debug_in(&self, method: &'static str) {
-        self.debug(format!("Enter [{}]", method));
+        do_log(|| self.debug(format!("Enter [{}]", method)));
     }
 
     pub fn debug_out(&self, method: &'static str) {
-        self.debug(format!("Leave [{}]", method));
+        do_log(|| self.debug(format!("Leave [{}]", method)));
     }
 
     pub fn info(&self, message: impl Display) {
-        log::info!(target: self.target().as_str(), "{}", message)
+        do_log(|| log::info!(target: self.target().as_str(), "{}", message));
     }
 
     pub fn warn(&self, message: impl Display) {
-        log::warn!(target: self.target().as_str(), "{}", message)
+        do_log(|| log::warn!(target: self.target().as_str(), "{}", message));
     }
 
     pub fn error(&self, message: impl Display) {
-        log::error!(target: self.target().as_str(), "{}", message)
+        do_log(|| log::error!(target: self.target().as_str(), "{}", message));
     }
 
     pub fn log_error(&self, senka_error: &SenkaError) {
-        log::error!(target: self.target().as_str(), "Error Code:[{}],Message:{}", senka_error.senka_error_code, senka_error.error_message)
+        do_log(|| log::error!(target: self.target().as_str(), "Error Code:[{}],Message:{}", senka_error.senka_error_code, senka_error.error_message));
     }
 }
 
@@ -126,4 +129,19 @@ pub fn initialize_logger(log_level: LogLevel, console_output: bool, file_output:
     .unwrap();
 
     log4rs::init_config(config).unwrap();
+    set_initialized();
+}
+
+fn set_initialized() {
+    LOGGER_INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::Acquire);
+}
+
+fn is_initialized() -> bool {
+    LOGGER_INITIALIZED.load(std::sync::atomic::Ordering::Acquire)
+}
+
+fn do_log<F: Fn()>(log_action: F) {
+    if is_initialized() {
+        log_action();
+    }
 }
