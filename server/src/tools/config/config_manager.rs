@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::{
     any::{Any, type_name},
     collections::HashMap,
@@ -7,7 +5,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use tokio::fs::{File, read_to_string, write};
+use tokio::fs::{read_to_string, write};
 
 use crate::{
     common_definitions::senka_error::{SenkaError, SenkaErrorCode},
@@ -50,7 +48,14 @@ impl ConfigManager {
             )),
             Ok(_) => match write(config_path, new_config_string).await {
                 Ok(_) => Ok(()),
-                Err(error) => Err(SenkaError::new(SenkaErrorCode::Inner, format!("Cannot update config[{}] to disk, message:{}", config_name, error.to_string())))
+                Err(error) => Err(SenkaError::new(
+                    SenkaErrorCode::Inner,
+                    format!(
+                        "Cannot update config[{}] to disk, message:{}",
+                        config_name,
+                        error.to_string()
+                    ),
+                )),
             },
         }
     }
@@ -63,11 +68,17 @@ impl ConfigManager {
         config_path.push_str(".conf");
         let config_path_entity = Path::new(&config_path);
         match !config_path_entity.exists() || config_path_entity.is_dir() {
-            true => Err(SenkaError::new(SenkaErrorCode::Arguement, format!("Config path not exists:{}", config_path))),
+            true => Err(SenkaError::new(
+                SenkaErrorCode::Arguement,
+                format!("Config path not exists:{}", config_path),
+            )),
             false => match read_to_string(&config_dir).await {
                 Ok(content) => Ok(content),
-                Err(error) => Err(SenkaError::new(SenkaErrorCode::Inner, format!("Read file failed,message:{}", error.to_string())))
-            }
+                Err(error) => Err(SenkaError::new(
+                    SenkaErrorCode::Inner,
+                    format!("Read file failed,message:{}", error.to_string()),
+                )),
+            },
         }
     }
 }

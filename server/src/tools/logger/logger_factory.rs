@@ -1,7 +1,20 @@
-use std::{fmt::Display, fs::create_dir_all, panic::Location, path::Path, sync::{Arc, atomic::AtomicBool}};
+use std::{fmt::Display, fs::create_dir_all, path::Path, sync::atomic::AtomicBool};
 
 use log::LevelFilter;
-use log4rs::{Config, append::{console::ConsoleAppender, rolling_file::{RollingFileAppender, policy::{Policy, compound::{CompoundPolicy, roll::fixed_window::FixedWindowRoller, trigger::size::SizeTrigger}}}}, config::{Appender, Root}, encode::pattern::{self, PatternEncoder}};
+use log4rs::{
+    Config,
+    append::{
+        console::ConsoleAppender,
+        rolling_file::{
+            RollingFileAppender,
+            policy::compound::{
+                CompoundPolicy, roll::fixed_window::FixedWindowRoller, trigger::size::SizeTrigger,
+            },
+        },
+    },
+    config::{Appender, Root},
+    encode::pattern::PatternEncoder,
+};
 use rocket::config::LogLevel;
 
 use crate::common_definitions::senka_error::SenkaError;
@@ -18,7 +31,10 @@ pub struct SenkaLogger {
 
 impl SenkaLogger {
     fn new(crate_name: &'static str, logger_name: &'static str) -> Self {
-        SenkaLogger { crate_name, logger_name }
+        SenkaLogger {
+            crate_name,
+            logger_name,
+        }
     }
 
     fn target(&self) -> String {
@@ -63,7 +79,9 @@ impl SenkaLogger {
     }
 
     pub fn log_error(&self, senka_error: &SenkaError) {
-        do_log(|| log::error!(target: self.target().as_str(), "Error Code:[{}],Message:{}", senka_error.senka_error_code, senka_error.error_message));
+        do_log(
+            || log::error!(target: self.target().as_str(), "Error Code:[{}],Message:{}", senka_error.senka_error_code, senka_error.error_message),
+        );
     }
 }
 
@@ -84,15 +102,22 @@ pub fn get_logger(crate_name: &'static str, logger_name: &'static str) -> SenkaL
 ///     file_output_dir: 日志文件路径,
 ///     file_size:       单个日志文件最大大小,
 ///     max_file_count:  最大日志数量
-pub fn initialize_logger(log_level: LogLevel, console_output: bool, file_output: bool, file_output_dir: &'static str, file_size: u64, max_file_count: u32) {
-    let mut appenders = Vec::new(); 
+pub fn initialize_logger(
+    log_level: LogLevel,
+    console_output: bool,
+    file_output: bool,
+    file_output_dir: &'static str,
+    file_size: u64,
+    max_file_count: u32,
+) {
+    let mut appenders = Vec::new();
 
     let encoder = PatternEncoder::new("[d(%Y-%m-%d %H:%M:%S%.3f)][%t][%l][%i]%m");
 
     if console_output {
         let console_appender = ConsoleAppender::builder()
-        .encoder(Box::new(encoder.clone()))
-        .build();
+            .encoder(Box::new(encoder.clone()))
+            .build();
         appenders.push(Appender::builder().build("console", Box::new(console_appender)));
     }
     if file_output {
@@ -108,25 +133,32 @@ pub fn initialize_logger(log_level: LogLevel, console_output: bool, file_output:
         // 设置文件大小触发器
         let size_trigger = SizeTrigger::new(file_size);
         // 设置文件窗口数量
-        let fixed_window_roller = FixedWindowRoller::builder().build(file_rolling_pattern.as_str(), max_file_count).unwrap();
+        let fixed_window_roller = FixedWindowRoller::builder()
+            .build(file_rolling_pattern.as_str(), max_file_count)
+            .unwrap();
         let policy = CompoundPolicy::new(Box::new(size_trigger), Box::new(fixed_window_roller));
         let rolling_file_appender = RollingFileAppender::builder()
-        .encoder(Box::new(encoder))
-        .build(file_output_path, Box::new(policy))
-        .unwrap();
-        appenders.push(Appender::builder()
-            .build("file", Box::new(rolling_file_appender)));
-    } 
+            .encoder(Box::new(encoder))
+            .build(file_output_path, Box::new(policy))
+            .unwrap();
+        appenders.push(Appender::builder().build("file", Box::new(rolling_file_appender)));
+    }
     let config = Config::builder()
-    .appenders(appenders)
-    .build(Root::builder()
-    .appenders(
-        if console_output && file_output { vec!["console", "file"] }
-        else if console_output { vec!["console"] }
-        else if file_output { vec!["file"] }
-        else { Vec::new() })
-    .build(LevelFilter::from(log_level)))
-    .unwrap();
+        .appenders(appenders)
+        .build(
+            Root::builder()
+                .appenders(if console_output && file_output {
+                    vec!["console", "file"]
+                } else if console_output {
+                    vec!["console"]
+                } else if file_output {
+                    vec!["file"]
+                } else {
+                    Vec::new()
+                })
+                .build(LevelFilter::from(log_level)),
+        )
+        .unwrap();
 
     log4rs::init_config(config).unwrap();
     set_initialized();
