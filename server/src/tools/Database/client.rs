@@ -1,5 +1,7 @@
 use once_cell::sync::OnceCell;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use serde::{Serialize, Deserialize};
+use std::any::Any;
 
 // 连接池单例
 pub static DATABASE: OnceCell<DatabaseConnection> = OnceCell::new();
