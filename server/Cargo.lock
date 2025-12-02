@@ -2549,6 +2549,7 @@ dependencies = [
  "sea-orm",
  "serde",
  "serde_json",
+ "sqlx-sqlite",
  "tokio",
  "toml",
  "uuid",

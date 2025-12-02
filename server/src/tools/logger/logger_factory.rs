@@ -16,8 +16,9 @@ use log4rs::{
     encode::pattern::PatternEncoder,
 };
 use rocket::config::LogLevel;
+use serde::{Deserialize, Serialize};
 
-use crate::common_definitions::senka_error::SenkaError;
+use crate::{common_definitions::senka_error::SenkaError, tools::config::config_manager::SenkaConfig};
 
 // logger初始化全局标识
 static LOGGER_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -176,4 +177,29 @@ fn do_log<F: Fn()>(log_action: F) {
     if is_initialized() {
         log_action();
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct LoggerConfig {
+    pub log_level: LogLevel,
+    pub console_output: bool,
+    pub file_output: bool,
+    pub file_size: u64,
+    pub max_file_count: u32
+}
+
+impl Default for LoggerConfig {
+    fn default() -> Self {
+        LoggerConfig {
+            log_level: LogLevel::Normal,
+            console_output: false,
+            file_output: true,
+            file_size: 1024 * 1024,
+            max_file_count: 10
+        }
+    }
+}
+
+impl SenkaConfig for LoggerConfig {
+    
 }

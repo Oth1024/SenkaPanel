@@ -11,6 +11,7 @@ tokio = { version = "1.45.1" }
 
 # database
 sea-orm = { version = "2.0.0-rc", features = [ "sqlx-sqlite", "runtime-tokio-native-tls", "macros", "with-chrono" ] }
+sqlx-sqlite = { version = "0.8.6", features = ["bundled"] }
 
 # logger
 log = { version = "0.4" }
