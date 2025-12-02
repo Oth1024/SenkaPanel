@@ -93,7 +93,7 @@ pub async fn read_config_string_from_disk<T: Any + 'static>() -> Result<String, 
     let config_dir = String::from(DEFAULT_CONFIG_DIRECTORY);
     let mut config_path = config_dir.clone();
     config_path.push_str(config_name);
-    config_path.push_str(".conf");
+    config_path.push_str(".toml");
     let config_path_entity = Path::new(&config_path);
     match !config_path_entity.exists() || config_path_entity.is_dir() {
         true => Err(SenkaError::new(
