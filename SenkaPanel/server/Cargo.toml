@@ -1,0 +1,31 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+common = { path = "../common" }
+tools = { path = "../tools" }
+directory_monitoring = { path = "../directory_monitoring" }
+fast_command = { path = "../fast_command" }
+
+# framework
+rocket = { workspace = true }
+rocket_ws = { workspace = true }
+tokio = { workspace = true }
+
+# database
+sea-orm = { workspace = true }
+sqlx-sqlite = { workspace = true }
+
+# logger
+log = { workspace = true }
+log4rs = { workspace = true }
+
+# utilities
+once_cell = { workspace = true, features = ["parking_lot"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+toml = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }

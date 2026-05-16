@@ -1,0 +1,16 @@
+[package]
+name = "directory_monitoring"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+notify = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-macros = { workspace = true }
+
+os_info = { workspace = true }
+libc = { workspace = true }
+once_cell = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

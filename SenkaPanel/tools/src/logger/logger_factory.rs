@@ -15,10 +15,6 @@ use log4rs::{
     config::{Appender, Root},
     encode::pattern::PatternEncoder,
 };
-use rocket::config::LogLevel;
-use serde::{Deserialize, Serialize};
-
-use crate::{common_definitions::senka_error::SenkaError, tools::config::config_manager::SenkaConfig};
 
 // logger初始化全局标识
 static LOGGER_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -78,12 +74,6 @@ impl SenkaLogger {
     pub fn error(&self, message: impl Display) {
         do_log(|| log::error!(target: self.target().as_str(), "{}", message));
     }
-
-    pub fn log_error(&self, senka_error: &SenkaError) {
-        do_log(
-            || log::error!(target: self.target().as_str(), "Error Code:[{}],Message:{}", senka_error.senka_error_code, senka_error.error_message),
-        );
-    }
 }
 
 // logger factory
@@ -104,7 +94,7 @@ pub fn get_logger(crate_name: &'static str, logger_name: &'static str) -> SenkaL
 ///     file_size:       单个日志文件最大大小,
 ///     max_file_count:  最大日志数量
 pub fn initialize_logger(
-    log_level: LogLevel,
+    log_level: LevelFilter,
     console_output: bool,
     file_output: bool,
     file_output_dir: &'static str,
@@ -157,7 +147,7 @@ pub fn initialize_logger(
                 } else {
                     Vec::new()
                 })
-                .build(LevelFilter::from(log_level)),
+                .build(log_level),
         )
         .unwrap();
 
@@ -177,29 +167,4 @@ fn do_log<F: Fn()>(log_action: F) {
     if is_initialized() {
         log_action();
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct LoggerConfig {
-    pub log_level: LogLevel,
-    pub console_output: bool,
-    pub file_output: bool,
-    pub file_size: u64,
-    pub max_file_count: u32
-}
-
-impl Default for LoggerConfig {
-    fn default() -> Self {
-        LoggerConfig {
-            log_level: LogLevel::Normal,
-            console_output: false,
-            file_output: true,
-            file_size: 1024 * 1024,
-            max_file_count: 10
-        }
-    }
-}
-
-impl SenkaConfig for LoggerConfig {
-    
 }
