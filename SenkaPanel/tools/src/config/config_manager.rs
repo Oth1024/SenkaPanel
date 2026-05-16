@@ -11,11 +11,8 @@ use tokio::{
     fs::{read_to_string, write},
     sync::RwLock,
 };
-
-use crate::{
-    common_definitions::senka_error::{SenkaError, SenkaErrorCode},
-    tools::consts::DEFAULT_CONFIG_DIRECTORY,
-};
+use common::senka_error::{SenkaError, SenkaErrorCode};
+use crate::consts::DEFAULT_CONFIG_DIRECTORY;
 
 pub trait SenkaConfig: Any + Default + Send + Sync {}
 

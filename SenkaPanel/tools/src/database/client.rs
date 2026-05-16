@@ -1,12 +1,9 @@
 use once_cell::sync::{Lazy, OnceCell};
 use sea_orm::{Database, DatabaseConnection};
-
+use common::senka_error::{SenkaError, SenkaErrorCode};
 use crate::{
-    common_definitions::senka_error::{SenkaError, SenkaErrorCode},
-    tools::{
-        consts::DEFAULT_DATA_DIRECTORY,
-        logger::logger_factory::{self, SenkaLogger},
-    },
+    consts::DEFAULT_DATA_DIRECTORY,
+    logger::logger_factory::{self, SenkaLogger},
 };
 
 // 连接池单例
@@ -27,7 +24,7 @@ pub async fn initialize_database() {
             DATABASE.set(db).unwrap();
         }
         Err(db_err) => {
-            LOGGER.log_error(&SenkaError::new(SenkaErrorCode::Inner, db_err.to_string()))
+            LOGGER.error(&SenkaError::new(SenkaErrorCode::Inner, db_err.to_string()))
         }
     };
 }
