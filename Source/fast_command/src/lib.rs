@@ -1,4 +1,7 @@
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection::SqlxSqlitePoolConnection};
 use uuid::Uuid;
+use tools::database::client::DATABASE;
+
 pub mod fast_command;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,15 +38,16 @@ pub struct FastCommandManager {
 }
 
 // 增
-pub fn create_fast_command_info(id: u128, command_name: String, command_value: String, icon_url: String, fast_command: bool, index: u32) -> FastCommandInfo {
-    FastCommandInfo {
-        uuid: uuid::Uuid::from_u128(id).to_string(),
-        command_name,
-        command_value,
-        icon_url,
-        fast_command,
-        index,
-    }
+pub async  fn create_fast_command_info(id: u128, command_name: String, command_value: String, icon_url: String, fast_command: bool, index: u32) {
+    let info = fast_command::ActiveModel {
+        uuid: Set(Uuid::from_u128(id).to_string()),
+        command_name: Set(command_name),
+        command_value: Set(command_value),
+        icon_url: Set(icon_url),
+        fast_command: Set(fast_command),
+        index: Set(index)
+    };
+    info.insert(DATABASE.get().unwrap()).await.unwrap();
 }
 
 pub async fn get_all_fast_command_infos() -> Vec<FastCommandInfo> {
@@ -51,7 +55,7 @@ pub async fn get_all_fast_command_infos() -> Vec<FastCommandInfo> {
     Vec::<FastCommandInfo>::new()
 }
 
-pub fn get_fast_command_detail(uuid: String) -> FastCommandInfo {
+pub async fn get_fast_command_detail(uuid: String) -> FastCommandInfo {
     // 从数据库中获取 fast_command_info
     FastCommandInfo {
         uuid,
@@ -63,14 +67,14 @@ pub fn get_fast_command_detail(uuid: String) -> FastCommandInfo {
     }
 }
 
-pub fn delete_fast_command_info(uuid: String) {
+pub async fn delete_fast_command_info(uuid: String) {
     // 从数据库中删除 fast_command_info
 }
 
-pub fn update_fast_command_info(fast_command_info: FastCommandInfo) {
+pub async fn update_fast_command_info(fast_command_info: FastCommandInfo) {
     // 更新数据库中的 fast_command_info
 }
 
-pub fn execute_fast_command(uuid: String) {
+pub async fn execute_fast_command(uuid: String) {
     // 执行 fast_command
 }

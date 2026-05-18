@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# local crate
 common = { path = "../common" }
 tools = { path = "../tools" }
 directory_monitoring = { path = "../directory_monitoring" }

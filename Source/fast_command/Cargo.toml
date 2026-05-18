@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# local crate
+tools = { path = "../tools" }
+common = { path = "../common" }
+
+# online crate
 uuid = { workspace = true }
 sea-orm = { workspace = true }
 sqlx-sqlite = { workspace = true }

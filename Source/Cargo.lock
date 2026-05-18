@@ -661,8 +661,10 @@ dependencies = [
 name = "fast_command"
 version = "0.1.0"
 dependencies = [
+ "common",
  "sea-orm",
  "sqlx-sqlite",
+ "tools",
  "uuid",
 ]
 
