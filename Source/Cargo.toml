@@ -1,5 +1,5 @@
 [workspace]
-members = ["common","directory_monitoring", "fast_command", "tools", "server"]
+members = ["common","directory_monitoring", "fast_command", "tools", "server", "process_monitor"]
 resolver = "3"
 
 [workspace.dependencies]
