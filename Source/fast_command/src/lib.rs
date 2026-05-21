@@ -8,7 +8,7 @@ use crate::fast_command::Column;
 pub mod fast_command;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FastCommandInfo {
+pub struct FastCommand {
     
     pub uuid: String,
 
@@ -18,19 +18,19 @@ pub struct FastCommandInfo {
 
     pub icon_url: String,
 
-    pub fast_command: bool,
+    pub keep_alive: bool,
 
     pub index: u32,
 }
 
-impl FastCommandInfo {
+impl FastCommand {
     pub fn from_database_model(model: &fast_command::Model) -> Self {
         Self {
             uuid: model.uuid.clone(),
             command_name: model.command_name.clone(),
             command_value: model.command_value.clone(),
             icon_url: model.icon_url.clone(),
-            fast_command: model.fast_command,
+            keep_alive: model.keep_alive,
             index: model.index,
         }
     }
@@ -41,45 +41,41 @@ impl FastCommandInfo {
             command_name: self.command_name.clone(),
             command_value: self.command_value.clone(),
             icon_url: self.icon_url.clone(),
-            fast_command: self.fast_command,
+            keep_alive: self.keep_alive,
             index: self.index
         }
     }
 }
 
-pub struct FastCommandManager {
-    pub fast_command_infos: Vec<FastCommandInfo>,
-}
-
 // 增
-pub async  fn create_fast_command_info(id: u128, command_name: String, command_value: String, icon_url: String, fast_command: bool, index: u32) {
+pub async fn create_fast_command_info(id: u128, command_name: String, command_value: String, icon_url: String, keep_alive: bool, index: u32) {
     let info = fast_command::ActiveModel {
         uuid: Set(Uuid::from_u128(id).to_string()),
         command_name: Set(command_name),
         command_value: Set(command_value),
         icon_url: Set(icon_url),
-        fast_command: Set(fast_command),
+        keep_alive: Set(keep_alive),
         index: Set(index)
     };
     info.insert(DATABASE.get().unwrap()).await.unwrap();
 }
 
-pub async fn get_all_fast_command_infos() -> Result<Vec<FastCommandInfo>, SenkaError> {
+pub async fn get_all_fast_command_infos() -> Result<Vec<FastCommand>, SenkaError> {
     // 从数据库中获取所有 fast_command_info
     let result = fast_command::Entity::find()
         .all(DATABASE.get().unwrap()).await;
     if let Ok(models) = result {
-        return Ok(Vec::from_iter(models.iter().map(|model|FastCommandInfo::from_database_model(model))));
+        return Ok(Vec::from_iter(models.iter().map(|model|FastCommand::from_database_model(model))));
     }
     Err(SenkaError::null())
 }
 
-pub async fn get_fast_command_detail(uuid: String) -> Result<FastCommandInfo, SenkaError> {
+pub async fn get_fast_command_detail(uuid: String) -> Result<FastCommand, SenkaError> {
     let result = fast_command::Entity::find()
         .filter(Column::Uuid.eq(uuid))
         .one(DATABASE.get().unwrap()).await;
     if let Ok(Some(model)) = result {
-        return Ok(FastCommandInfo::from_database_model(&model));
+        return Ok(FastCommand::from_database_model(&model));
     }
     Err(SenkaError::null())
 }
@@ -91,15 +87,10 @@ pub async fn delete_fast_command_info(uuid: String) {
         .exec(DATABASE.get().unwrap()).await.unwrap();
 }
 
-pub async fn update_fast_command_info(fast_command_info: FastCommandInfo) {
+pub async fn update_fast_command_info(fast_command_info: FastCommand) {
     // 更新数据库中的 fast_command_info
-    if (&fast_command_info).uuid.is_empty() {
-
-    }
-    else {
-        let new_model = (&fast_command_info).to_database_model();
-        new_model.into_active_model().update(DATABASE.get().unwrap()).await.unwrap();
-    }
+    let new_model = (&fast_command_info).to_database_model();
+    new_model.into_active_model().update(DATABASE.get().unwrap()).await.unwrap();
 }
 
 pub async fn execute_fast_command(uuid: String) -> Result<(), SenkaError> {
