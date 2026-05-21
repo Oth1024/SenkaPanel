@@ -1,5 +1,5 @@
 use common::senka_error::{SenkaError, SenkaErrorCode};
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection::SqlxSqlitePoolConnection, EntityTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection::SqlxSqlitePoolConnection, EntityTrait, IntoActiveModel, QueryFilter};
 use uuid::Uuid;
 use tools::database::client::DATABASE;
 
@@ -32,6 +32,17 @@ impl FastCommandInfo {
             icon_url: model.icon_url.clone(),
             fast_command: model.fast_command,
             index: model.index,
+        }
+    }
+
+    pub fn to_database_model(&self) -> fast_command::Model {
+        fast_command::Model {
+            uuid: self.uuid.clone(),
+            command_name: self.command_name.clone(),
+            command_value: self.command_value.clone(),
+            icon_url: self.icon_url.clone(),
+            fast_command: self.fast_command,
+            index: self.index
         }
     }
 }
@@ -82,9 +93,16 @@ pub async fn delete_fast_command_info(uuid: String) {
 
 pub async fn update_fast_command_info(fast_command_info: FastCommandInfo) {
     // 更新数据库中的 fast_command_info
-    
+    if (&fast_command_info).uuid.is_empty() {
+
+    }
+    else {
+        let new_model = (&fast_command_info).to_database_model();
+        new_model.into_active_model().update(DATABASE.get().unwrap()).await.unwrap();
+    }
 }
 
-pub async fn execute_fast_command(uuid: String) {
+pub async fn execute_fast_command(uuid: String) -> Result<(), SenkaError> {
     // 执行 fast_command
+    Ok(())
 }
