@@ -22,6 +22,7 @@ toml = { version = "0.8.23" }
 uuid = { version = "1.17.0" }
 bcrypt = { version = "0.17.1" }
 chrono = "0.4.44"
+dashmap = "6.2.1"
 # logger
 log = { version = "0.4" }
 log4rs = { version = "1.4.0", features = ["pattern_encoder", "json_encoder"] }
