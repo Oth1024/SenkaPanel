@@ -6,8 +6,10 @@ edition = "2024"
 [dependencies]
 # local crate
 tools = { path = "../tools" }
+common = { path = "../common" }
 
 # online crate
 tokio = { workspace = true }
 chrono = { workspace = true }
 dashmap = { workspace = true }
+once_cell = { workspace = true }
