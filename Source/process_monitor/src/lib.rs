@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use common::senka_error::{SenkaError, SenkaErrorCode};
 use tokio::process::{self, Child};
-use dashmap::{DashMap, DashSet};
+use dashmap::{DashMap, DashSet, mapref::entry};
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
@@ -84,37 +84,38 @@ impl ProcessManager {
         }
     }
 
-    pub async fn restart(&mut self, id: u32) {
-        let command = match self.process_infos.get(&id) {
-            Some(info) => info.command.clone(),
-            None => return,
-        };
-
-        let mut child_opt = None;
-        if let Some(mut entry) = self.process_infos.get_mut(&id) {
-            child_opt = entry.process.take();
-        }
-        if let Some(mut child) = child_opt {
-            let _ = child.kill().await;
-        }
-
-        if let Some(mut entry) = self.process_infos.get_mut(&id) {
+    pub async fn restart(&mut self, id: u32) -> Result<(), SenkaError> {
+        // 检查原有进程，如果不存在，则返回Error
+        if let Some(mut process_info_entry) = self.process_infos.get_mut(&id) {
+            let process_opt = process_info_entry.process.take();
+            // 存在Child且状态是running，则关闭
+            if let Some(mut process) = process_opt {
+                process.kill().await;
+            }
+            let command = match self.process_infos.get(&id) {
+                Some(info) => info.command.clone(),
+                None => return Ok(()),
+            };
             match process::Command::new(&command).spawn() {
                 Ok(child) => {
-                    entry.process = Some(child);
-                    entry.status = ProcessStatus::Running;
+                    process_info_entry.process = Some(child);
+                    process_info_entry.status = ProcessStatus::Running;
                 }
                 Err(_) => {
-                    entry.process = None;
-                    entry.status = ProcessStatus::None;
+                    process_info_entry.process = None;
+                    process_info_entry.status = ProcessStatus::None;
                 }
             }
+            return Ok(());
+        }
+        else {
+            return Err(SenkaError::new(SenkaErrorCode::Arguement, format!("Process with id[{}] not exists", id)));
         }
     }
 
     pub fn remove(&mut self, id: u32) -> Result<(), SenkaError> {
-        if let Some(entry) = self.process_infos.get(&id) {
-            if matches!(entry.status, ProcessStatus::Running) {
+        if let Some(process_info_entry) = self.process_infos.get(&id) {
+            if matches!(process_info_entry.status, ProcessStatus::Running) {
                 return Err(SenkaError::new(
                     SenkaErrorCode::Inner,
                     format!("process {} is still running, cannot remove", id),
