@@ -2,7 +2,7 @@ use common::senka_error::{self, SenkaError, SenkaErrorCode};
 use process_monitor::{PROCESS_MANAGER, ProcessManager};
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection::SqlxSqlitePoolConnection, EntityTrait, IntoActiveModel, QueryFilter};
 use uuid::Uuid;
-use tools::database::client::DATABASE;
+use tools::database::client::get_db;
 
 use crate::fast_command::Column;
 
@@ -58,13 +58,13 @@ pub async fn create_fast_command_info(id: u128, command_name: String, command_va
         keep_alive: Set(keep_alive),
         index: Set(index)
     };
-    info.insert(DATABASE.get().unwrap()).await.unwrap();
+    info.insert(get_db(fast_command::Entity).await).await.unwrap();
 }
 
 pub async fn get_all_fast_command_infos() -> Result<Vec<FastCommand>, SenkaError> {
     // 从数据库中获取所有 fast_command_info
     let result = fast_command::Entity::find()
-        .all(DATABASE.get().unwrap()).await;
+        .all(get_db(fast_command::Entity).await).await;
     if let Ok(models) = result {
         return Ok(Vec::from_iter(models.iter().map(|model|FastCommand::from_database_model(model))));
     }
@@ -72,9 +72,8 @@ pub async fn get_all_fast_command_infos() -> Result<Vec<FastCommand>, SenkaError
 }
 
 pub async fn get_fast_command_detail(uuid: String) -> Result<FastCommand, SenkaError> {
-    let result = fast_command::Entity::find()
-        .filter(Column::Uuid.eq(uuid))
-        .one(DATABASE.get().unwrap()).await;
+    let result = fast_command::Entity::find_by_id(uuid)
+        .one(get_db(fast_command::Entity).await).await;
     if let Ok(Some(model)) = result {
         return Ok(FastCommand::from_database_model(&model));
     }
@@ -83,15 +82,14 @@ pub async fn get_fast_command_detail(uuid: String) -> Result<FastCommand, SenkaE
 
 pub async fn delete_fast_command_info(uuid: String) {
     // 从数据库中删除 fast_command_info
-    fast_command::Entity::delete_many()
-        .filter(Column::Uuid.eq(uuid))
-        .exec(DATABASE.get().unwrap()).await.unwrap();
+    fast_command::Entity::delete_by_id(uuid)
+        .exec(get_db(fast_command::Entity).await).await.unwrap();
 }
 
 pub async fn update_fast_command_info(fast_command_info: FastCommand) {
     // 更新数据库中的 fast_command_info
     let new_model = (&fast_command_info).to_database_model();
-    new_model.into_active_model().update(DATABASE.get().unwrap()).await.unwrap();
+    new_model.into_active_model().update(get_db(fast_command::Entity).await).await.unwrap();
 }
 
 pub async fn execute_fast_command(uuid: String) -> Result<(), SenkaError> {

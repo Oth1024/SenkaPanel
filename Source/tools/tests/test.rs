@@ -2,17 +2,16 @@
 mod test {
     use sea_orm::{
         entity::prelude::*,
-        ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection,
-        DbBackend, EntityTrait, ModelTrait, QueryFilter, Schema, Set,
+        ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, Set,
     };
-    use tools::database::client::{DATABASE, initialize_database};
+    use tools::database::client::get_db;
     use tokio;
 
     #[derive(Debug, Clone, PartialEq, DeriveEntityModel)]
     #[sea_orm(table_name = "test_table")]
     pub struct Model {
         #[sea_orm(primary_key)]
-        pub id: u32,
+        pub id: i32,
 
         pub content: String,
 
@@ -24,24 +23,9 @@ mod test {
 
     impl ActiveModelBehavior for ActiveModel {}
 
-    async fn ensure_db() -> &'static DatabaseConnection {
-        if DATABASE.get().is_none() {
-            initialize_database().await;
-            let db = DATABASE.get().unwrap();
-            let stmt = Schema::new(DbBackend::Sqlite)
-                .create_table_from_entity(Entity)
-                .if_not_exists()
-                .to_owned();
-            db.execute(db.get_database_backend().build(&stmt))
-                .await
-                .expect("Failed to create test_table");
-        }
-        DATABASE.get().unwrap()
-    }
-
     #[tokio::test]
     async fn test_insert() {
-        let db = ensure_db().await;
+        let db = get_db(Entity).await;
 
         let model = ActiveModel {
             id: Set(1),
@@ -53,7 +37,7 @@ mod test {
         let result = model.insert(db).await;
         assert!(result.is_ok());
 
-        let saved = Entity::find_by_id(1).one(db).await.unwrap();
+        let saved = Entity::find().filter(Column::Id.eq(1)).one(db).await.unwrap();
         assert!(saved.is_some());
         assert_eq!(saved.unwrap().content, "insert test");
 
@@ -62,7 +46,7 @@ mod test {
 
     #[tokio::test]
     async fn test_find() {
-        let db = ensure_db().await;
+        let db = get_db(Entity).await;
 
         ActiveModel {
             id: Set(2),
@@ -95,7 +79,7 @@ mod test {
 
     #[tokio::test]
     async fn test_update() {
-        let db = ensure_db().await;
+        let db = get_db(Entity).await;
 
         ActiveModel {
             id: Set(3),
@@ -122,7 +106,7 @@ mod test {
 
     #[tokio::test]
     async fn test_delete() {
-        let db = ensure_db().await;
+        let db = get_db(Entity).await;
 
         ActiveModel {
             id: Set(4),
