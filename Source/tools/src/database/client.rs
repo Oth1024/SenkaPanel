@@ -1,5 +1,5 @@
 use std::sync::atomic::AtomicBool;
-
+use tokio::fs;
 use once_cell::sync::{Lazy, OnceCell};
 use sea_orm::{ConnectionTrait, Database, DatabaseConnection, DbBackend, EntityTrait, Schema};
 use common::senka_error::{SenkaError, SenkaErrorCode};
@@ -17,7 +17,8 @@ static LOGGER: Lazy<SenkaLogger> = Lazy::new(|| logger_factory::get_logger("data
 /// 初始化数据库实例
 /// 需要在程序开始时调用此方法
 pub async fn initialize_database() {
-    if (!DATABASE_INITIALIZED.load(std::sync::atomic::Ordering::Acquire)) {
+    if !DATABASE_INITIALIZED.load(std::sync::atomic::Ordering::Acquire) {
+        fs::create_dir_all(DEFAULT_DATA_DIRECTORY).await.unwrap();
         match Database::connect(format!(
             "sqlite://{}db.sqlite?mode=rwc",
             DEFAULT_DATA_DIRECTORY
