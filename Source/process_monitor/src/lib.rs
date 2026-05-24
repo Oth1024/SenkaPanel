@@ -1,7 +1,9 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use chrono::{DateTime, Utc};
 use common::senka_error::{SenkaError, SenkaErrorCode};
 use tokio::process::{self, Child};
-use dashmap::{DashMap, DashSet, mapref::entry};
+use dashmap::{DashMap, DashSet};
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
@@ -43,8 +45,8 @@ pub static PROCESS_MANAGER: Lazy<ProcessManager> =
 pub struct ProcessManager {
     check_interval: u32,
     pub process_infos: DashMap<u32, ProcessInfo>,
-    pub monitored_process: Vec<u32>,
-    process_index: u32
+    pub monitored_process: DashSet<u32>,
+    process_index: AtomicU32,
 }
 
 impl ProcessManager {
@@ -53,30 +55,36 @@ impl ProcessManager {
         ProcessManager {
             check_interval: 5,
             process_infos: DashMap::new(),
-            monitored_process: Vec::new(),
-            process_index: 0
+            monitored_process: DashSet::new(),
+            process_index: AtomicU32::new(0),
         }
     }
 
-    pub fn start_monitor(&mut self) {
+    pub fn start_monitor(&self) {
 
     }
 
-    pub fn start(&mut self, command: String, creator: String) -> Result<u32, SenkaError> {
-        let id = self.process_index;
-        self.process_index += 1;
+    pub fn start_raw(command: String) -> Result<Child, SenkaError> {
+        match process::Command::new(&command).spawn() {
+            Ok(child) => return Ok(child),
+            Err(error) => return Err(SenkaError::new(SenkaErrorCode::Arguement, error.to_string())),
+        }
+    }
+
+    pub fn start(&self, command: String, creator: String) -> Result<u32, SenkaError> {
+        let id = self.process_index.fetch_add(1, Ordering::SeqCst);
         let child_result = process::Command::new(&command).spawn();
         let process_info = match child_result {
             Ok(child) => ProcessInfo::new(Some(child), command, creator),
             Err(_) => ProcessInfo::new(None, command, creator),
         };
         self.process_infos.insert(id, process_info);
-        self.monitored_process.push(id);
+        self.monitored_process.insert(id);
 
         Ok(id)
     }
 
-    pub fn kill(&mut self, id: u32) {
+    pub fn kill(&self, id: u32) {
         if let Some(mut entry) = self.process_infos.get_mut(&id) {
             if let Some(mut child) = entry.process.take() {
                 let _ = child.start_kill();
@@ -84,36 +92,41 @@ impl ProcessManager {
         }
     }
 
-    pub async fn restart(&mut self, id: u32) -> Result<(), SenkaError> {
-        // 检查原有进程，如果不存在，则返回Error
-        if let Some(mut process_info_entry) = self.process_infos.get_mut(&id) {
-            let process_opt = process_info_entry.process.take();
-            // 存在Child且状态是running，则关闭
-            if let Some(mut process) = process_opt {
-                process.kill().await;
-            }
-            let command = match self.process_infos.get(&id) {
-                Some(info) => info.command.clone(),
-                None => return Ok(()),
-            };
-            match process::Command::new(&command).spawn() {
-                Ok(child) => {
-                    process_info_entry.process = Some(child);
-                    process_info_entry.status = ProcessStatus::Running;
-                }
-                Err(_) => {
-                    process_info_entry.process = None;
-                    process_info_entry.status = ProcessStatus::None;
-                }
-            }
-            return Ok(());
+    pub async fn restart(&self, id: u32) -> Result<(), SenkaError> {
+        let command = match self.process_infos.get(&id) {
+            Some(info) => info.command.clone(),
+            None => return Err(SenkaError::new(SenkaErrorCode::Arguement, format!("Process with id[{}] not exists", id))),
+        };
+
+        let old_child = match self.process_infos.get_mut(&id) {
+            Some(mut entry) => entry.process.take(),
+            None => return Err(SenkaError::new(SenkaErrorCode::Arguement, format!("Process with id[{}] not exists", id))),
+        };
+
+        if let Some(mut child) = old_child {
+            let _ = child.kill().await;
         }
-        else {
-            return Err(SenkaError::new(SenkaErrorCode::Arguement, format!("Process with id[{}] not exists", id)));
+
+        match self.process_infos.get_mut(&id) {
+            Some(mut entry) => {
+                match process::Command::new(&command).spawn() {
+                    Ok(child) => {
+                        entry.process = Some(child);
+                        entry.status = ProcessStatus::Running;
+                    }
+                    Err(_) => {
+                        entry.process = None;
+                        entry.status = ProcessStatus::None;
+                    }
+                }
+            }
+            None => {}
         }
+
+        Ok(())
     }
 
-    pub fn remove(&mut self, id: u32) -> Result<(), SenkaError> {
+    pub fn remove(&self, id: u32) -> Result<(), SenkaError> {
         if let Some(process_info_entry) = self.process_infos.get(&id) {
             if matches!(process_info_entry.status, ProcessStatus::Running) {
                 return Err(SenkaError::new(
@@ -123,7 +136,7 @@ impl ProcessManager {
             }
         }
         self.process_infos.remove(&id);
-        self.monitored_process.retain(|&x| x != id);
+        self.monitored_process.remove(&id);
         Ok(())
     }
 }

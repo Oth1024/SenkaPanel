@@ -1,4 +1,5 @@
-use common::senka_error::{SenkaError, SenkaErrorCode};
+use common::senka_error::{self, SenkaError, SenkaErrorCode};
+use process_monitor::{PROCESS_MANAGER, ProcessManager};
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection::SqlxSqlitePoolConnection, EntityTrait, IntoActiveModel, QueryFilter};
 use uuid::Uuid;
 use tools::database::client::DATABASE;
@@ -95,5 +96,22 @@ pub async fn update_fast_command_info(fast_command_info: FastCommand) {
 
 pub async fn execute_fast_command(uuid: String) -> Result<(), SenkaError> {
     // 执行 fast_command
-    Ok(())
+    match get_fast_command_detail(uuid).await {
+        Ok(fast_command) => {
+            // 不是FastCommand，则直接创建进程
+            if !&fast_command.keep_alive {
+                match ProcessManager::start_raw(fast_command.command_value.clone()) {
+                    Ok(_) => return Ok(()),
+                    Err(senka_error) => Err(senka_error)
+                }
+            }
+            // 否则由ProcessManager托管
+            else {
+                // TODO 完善Creator
+                let _ = PROCESS_MANAGER.start(fast_command.command_value.clone(), String::from(""));
+                return Ok(());
+            }
+        }
+        Err(senka_error) => return Err(senka_error),
+    }
 }

@@ -12,6 +12,7 @@ sea-orm = { workspace = true }
 log = { workspace = true }
 log4rs = { workspace = true }
 once_cell = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-macros = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 toml = { workspace = true }

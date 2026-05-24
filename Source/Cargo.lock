@@ -676,6 +676,7 @@ name = "fast_command"
 version = "0.1.0"
 dependencies = [
  "common",
+ "process_monitor",
  "sea-orm",
  "sqlx-sqlite",
  "tools",
@@ -3442,6 +3443,7 @@ dependencies = [
  "sea-orm",
  "serde",
  "tokio",
+ "tokio-macros",
  "toml",
 ]
 
