@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use chrono::{DateTime, Utc};
 use common::senka_error::{SenkaError, SenkaErrorCode};
-use tokio::process::{self, Child};
+use tokio::{process::{self, Child}, task};
 use dashmap::{DashMap, DashSet};
 use once_cell::sync::Lazy;
 
@@ -53,7 +53,7 @@ impl ProcessManager {
     // 创建ProcessManager对象
     fn new() -> Self {
         ProcessManager {
-            check_interval: 5,
+            check_interval: 1,
             process_infos: DashMap::new(),
             monitored_process: DashSet::new(),
             process_index: AtomicU32::new(0),
@@ -61,7 +61,12 @@ impl ProcessManager {
     }
 
     pub fn start_monitor(&self) {
-
+        // 创建一个线程，监控monitored_process
+        // 获取process实体，并刷新状态
+        task::spawn_blocking(f)
+        for id in self.monitored_process.iter() {
+            let process_info = self.process_infos[id];
+        }
     }
 
     pub fn start_raw(command: String) -> Result<Child, SenkaError> {
