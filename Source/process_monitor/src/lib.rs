@@ -1,9 +1,11 @@
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Mutex;
+use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use common::senka_error::{SenkaError, SenkaErrorCode};
-use tokio::{process::{self, Child}, task};
-use dashmap::{DashMap, DashSet};
+use tokio::{process::{self, Child}, task::JoinHandle, time};
+use dashmap::DashMap;
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
@@ -43,30 +45,63 @@ pub static PROCESS_MANAGER: Lazy<ProcessManager> =
     Lazy::new(|| ProcessManager::new());
 
 pub struct ProcessManager {
-    check_interval: u32,
     pub process_infos: DashMap<u32, ProcessInfo>,
-    pub monitored_process: DashSet<u32>,
+    check_interval: u32,
     process_index: AtomicU32,
+    monitor_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl ProcessManager {
     // 创建ProcessManager对象
     fn new() -> Self {
         ProcessManager {
-            check_interval: 1,
             process_infos: DashMap::new(),
-            monitored_process: DashSet::new(),
+            check_interval: 1,
             process_index: AtomicU32::new(0),
+            monitor_handle: Mutex::new(None),
         }
     }
 
     pub fn start_monitor(&self) {
-        // 创建一个线程，监控monitored_process
-        // 获取process实体，并刷新状态
-        task::spawn_blocking(f)
-        for id in self.monitored_process.iter() {
-            let process_info = self.process_infos[id];
+        let mut handle = self.monitor_handle.lock().unwrap();
+        if handle.as_ref().is_some_and(|h| !h.is_finished()) {
+            return; // 监控任务已在运行
         }
+
+        let new_handle = tokio::spawn(async {
+            loop {
+                let ids: Vec<u32> = PROCESS_MANAGER.process_infos.iter()
+                    .map(|entry| *entry.key())
+                    .collect();
+
+                for id in ids {
+                    if let Some(mut entry) = PROCESS_MANAGER.process_infos.get_mut(&id) {
+                        if let Some(ref mut child) = entry.process {
+                            match child.try_wait() {
+                                Ok(Some(exit_status)) => {
+                                    entry.status = ProcessStatus::Exited(
+                                        exit_status.code().unwrap_or(-1),
+                                    );
+                                    entry.process = None;
+                                }
+                                Ok(None) => {} // 进程仍在运行
+                                Err(_) => {
+                                    entry.status = ProcessStatus::Exited(-1);
+                                    entry.process = None;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                time::sleep(Duration::from_secs(
+                    PROCESS_MANAGER.check_interval as u64,
+                ))
+                .await;
+            }
+        });
+
+        *handle = Some(new_handle);
     }
 
     pub fn start_raw(command: String) -> Result<Child, SenkaError> {
@@ -84,7 +119,6 @@ impl ProcessManager {
             Err(_) => ProcessInfo::new(None, command, creator),
         };
         self.process_infos.insert(id, process_info);
-        self.monitored_process.insert(id);
 
         Ok(id)
     }
@@ -141,7 +175,7 @@ impl ProcessManager {
             }
         }
         self.process_infos.remove(&id);
-        self.monitored_process.remove(&id);
         Ok(())
     }
+
 }
