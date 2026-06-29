@@ -41,20 +41,20 @@ impl ProcessInfo {
     }
 }
 
-pub static PROCESS_MANAGER: Lazy<ProcessManager> = 
-    Lazy::new(|| ProcessManager::new());
+pub static PROCESS_MONITOR: Lazy<ProcessMonitor> = 
+    Lazy::new(|| ProcessMonitor::new());
 
-pub struct ProcessManager {
+pub struct ProcessMonitor {
     pub process_infos: DashMap<u32, ProcessInfo>,
     check_interval: u32,
     process_index: AtomicU32,
     monitor_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
-impl ProcessManager {
-    // 创建ProcessManager对象
+impl ProcessMonitor {
+    // 创建ProcessMonitor对象
     fn new() -> Self {
-        ProcessManager {
+        ProcessMonitor {
             process_infos: DashMap::new(),
             check_interval: 1,
             process_index: AtomicU32::new(0),
@@ -70,12 +70,12 @@ impl ProcessManager {
 
         let new_handle = tokio::spawn(async {
             loop {
-                let ids: Vec<u32> = PROCESS_MANAGER.process_infos.iter()
+                let ids: Vec<u32> = PROCESS_MONITOR.process_infos.iter()
                     .map(|entry| *entry.key())
                     .collect();
 
                 for id in ids {
-                    if let Some(mut entry) = PROCESS_MANAGER.process_infos.get_mut(&id) {
+                    if let Some(mut entry) = PROCESS_MONITOR.process_infos.get_mut(&id) {
                         if let Some(ref mut child) = entry.process {
                             match child.try_wait() {
                                 Ok(Some(exit_status)) => {
@@ -95,7 +95,7 @@ impl ProcessManager {
                 }
 
                 time::sleep(Duration::from_secs(
-                    PROCESS_MANAGER.check_interval as u64,
+                    PROCESS_MONITOR.check_interval as u64,
                 ))
                 .await;
             }
