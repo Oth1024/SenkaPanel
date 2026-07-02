@@ -49,8 +49,12 @@ impl ProcessInfo {
     }
 }
 
-pub static PROCESS_MANAGER: Lazy<ProcessManager> = 
+static PROCESS_MANAGER: Lazy<ProcessManager> = 
     Lazy::new(|| ProcessManager::new());
+
+pub fn get_process_manager() -> &'static ProcessManager {
+    &PROCESS_MANAGER
+}
 
 pub struct ProcessManager {
     pub process_infos: DashMap<u32, ProcessInfo>,
@@ -83,11 +87,11 @@ impl ProcessManager {
 
         let new_handle = tokio::spawn(async {
             loop {
-                let ids: Vec<u32> = PROCESS_MANAGER.process_infos.iter()
+                let ids: Vec<u32> = get_process_manager().process_infos.iter()
                     .map(|entry| *entry.key())
                     .collect();
                 for id in ids {
-                    if let Some(mut process_info) = PROCESS_MANAGER.process_infos.get_mut(&id) {
+                    if let Some(mut process_info) = get_process_manager().process_infos.get_mut(&id) {
                         // 检查进程实体，并通过进程实体状态更新缓存中的进程信息状态
                         if let Some(ref mut child) = process_info.process {
                             match child.try_wait() {
@@ -114,17 +118,17 @@ impl ProcessManager {
                         // 如果是Running则DONOTHING
                         // 如果是Stopped则DONOTHING
                         if let ProcessStatus::Exited(_) = process_info.status && process_info.auto_restart {
-                            let _ = PROCESS_MANAGER.restart(id).await;
+                            let _ = get_process_manager().restart(id).await;
                         }
                     }
                 }
 
-                if PROCESS_MANAGER.stop_signal.load(Ordering::Acquire) {
+                if get_process_manager().stop_signal.load(Ordering::Acquire) {
                     break;
                 }
 
                 time::sleep(Duration::from_secs(
-                    PROCESS_MANAGER.check_interval as u64,
+                    get_process_manager().check_interval as u64,
                 ))
                 .await;
             }

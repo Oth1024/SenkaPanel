@@ -11,6 +11,10 @@ pub mod def;
 pub static FS_WATCHER: Lazy<Mutex<HashMap<String, ReadDirectoryChangesWatcher>>> =
     Lazy::new(||Mutex::new(HashMap::<String, ReadDirectoryChangesWatcher>::new()));
 
+pub fn get_fs_watcher() -> &'static Mutex<HashMap<String, ReadDirectoryChangesWatcher>> {
+    &FS_WATCHER
+}
+
 static FS_WATCHER_EVENT_HANDLER: Lazy<Mutex<HashMap<String, HashMap<String, Box<dyn Fn(&Event) + Send + Sync>>>>> = 
     Lazy::new(||Mutex::new(HashMap::new()));
 
@@ -85,7 +89,7 @@ pub async fn monitor_fs(directory: &str) {
     let _ = watcher.watch(path, notify::RecursiveMode::NonRecursive);
 
     // 添加到订阅表方便取消订阅
-    FS_WATCHER.lock().unwrap().insert(String::from(directory), watcher);
+    get_fs_watcher().lock().unwrap().insert(String::from(directory), watcher);
 
     while let Some(res) = rx.recv().await {
         if let Ok(event) = res {
@@ -96,7 +100,7 @@ pub async fn monitor_fs(directory: &str) {
 
 /// 取消并移除一个已经订阅的路径
 pub fn cancel_monitor_fs(directory: &str) {
-    if let Ok(mut watchers) = FS_WATCHER.lock() {
+    if let Ok(mut watchers) = get_fs_watcher().lock() {
         if watchers.contains_key(directory) {
             // 取消订阅
             let path = Path::new(directory);

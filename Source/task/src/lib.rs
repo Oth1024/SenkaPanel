@@ -1,5 +1,5 @@
 use common::senka_error::{self, SenkaError, SenkaErrorCode};
-use process_manager::{PROCESS_MANAGER, ProcessManager};
+use process_manager::get_process_manager;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection::SqlxSqlitePoolConnection, EntityTrait, IntoActiveModel, QueryFilter};
 use uuid::Uuid;
 use tools::database::client::get_db;
@@ -99,7 +99,7 @@ pub async fn execute_task(uuid: String) -> Result<(), SenkaError> {
             // 不是Task，则直接创建进程
             if !&task.keep_alive {
                 // TODO 完善Creator
-                match PROCESS_MANAGER.start(task.command.clone(), false, String::from("")) {
+                match get_process_manager().start(task.command.clone(), false, String::from("")) {
                     Ok(_) => return Ok(()),
                     Err(senka_error) => Err(senka_error)
                 }
@@ -107,7 +107,7 @@ pub async fn execute_task(uuid: String) -> Result<(), SenkaError> {
             // 否则由ProcessManager托管
             else {
                 // TODO 完善Creator
-                let _ = PROCESS_MANAGER.start(task.command.clone(), false, String::from(""));
+                let _ = get_process_manager().start(task.command.clone(), false, String::from(""));
                 return Ok(());
             }
         }
