@@ -22,8 +22,19 @@ pub enum ProcessStatus {
 }
 
 #[derive(Debug)]
+/// 定义进程句柄的类型
+pub enum ProcessHandle {
+    // 无子进程
+    None,
+    // 由本进程创建的子进程句柄，支持输入输出控制、状态管理
+    Managed(Child),
+    // 通过其他方式捕获的进程句柄，仅支持状态管理
+    Orphan()
+}
+
+#[derive(Debug)]
 pub struct ProcessInfo {
-    pub process: Option<Child>,
+    pub process: ProcessHandle,
     pub status: ProcessStatus,
     pub command: String,
     pub auto_restart: bool,
@@ -32,7 +43,7 @@ pub struct ProcessInfo {
 }
 
 impl ProcessInfo {
-    pub fn new(process_child: Option<Child>, command: String, auto_restart: bool, creator: String) -> Self {
+    pub fn new(process_child: ProcessHandle, command: String, auto_restart: bool, creator: String) -> Self {
         let (process, status) = match process_child {
             Some(child) => (Some(child), ProcessStatus::Running),
             None => (None, ProcessStatus::None),
