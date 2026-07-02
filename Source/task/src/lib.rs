@@ -21,8 +21,6 @@ pub struct Task {
 
     pub keep_alive: bool,
 
-    pub associated_process_id: Option<u32>,
-
     pub index: u32,
 }
 
@@ -34,7 +32,6 @@ impl Task {
             command: model.command.clone(),
             icon_url: model.icon_url.clone(),
             keep_alive: model.keep_alive,
-            associated_process_id: model.associated_process_id, 
             index: model.index,
         }
     }
@@ -46,21 +43,19 @@ impl Task {
             command: self.command.clone(),
             icon_url: self.icon_url.clone(),
             keep_alive: self.keep_alive,
-            associated_process_id: self.associated_process_id,  
             index: self.index
         }
     }
 }
 
 // 增
-pub async fn create_task_info(id: u128, task_name: String, command: String, icon_url: String, keep_alive: bool, associated_process_id: Option<u32>, index: u32) {
+pub async fn create_task_info(id: u128, task_name: String, command: String, icon_url: String, keep_alive: bool, index: u32) {
     let info = task::ActiveModel {
         uuid: Set(Uuid::from_u128(id).to_string()),
         task_name: Set(task_name),
         command: Set(command),
         icon_url: Set(icon_url),
         keep_alive: Set(keep_alive),
-        associated_process_id: Set(associated_process_id),
         index: Set(index)
     };
     info.insert(get_db(task::Entity).await).await.unwrap();
