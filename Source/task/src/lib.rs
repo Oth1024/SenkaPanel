@@ -103,7 +103,8 @@ pub async fn execute_task(uuid: String) -> Result<(), SenkaError> {
         Ok(task) => {
             // 不是Task，则直接创建进程
             if !&task.keep_alive {
-                match ProcessManager::start_raw(task.command.clone()) {
+                // TODO 完善Creator
+                match PROCESS_MANAGER.start(task.command.clone(), false, String::from("")) {
                     Ok(_) => return Ok(()),
                     Err(senka_error) => Err(senka_error)
                 }
@@ -111,7 +112,7 @@ pub async fn execute_task(uuid: String) -> Result<(), SenkaError> {
             // 否则由ProcessManager托管
             else {
                 // TODO 完善Creator
-                let _ = PROCESS_MANAGER.start(task.command.clone(), String::from(""));
+                let _ = PROCESS_MANAGER.start(task.command.clone(), false, String::from(""));
                 return Ok(());
             }
         }
