@@ -41,41 +41,41 @@ impl ProcessInfo {
     }
 }
 
-pub static PROCESS_MONITOR: Lazy<ProcessMonitor> = 
-    Lazy::new(|| ProcessMonitor::new());
+pub static PROCESS_MANAGER: Lazy<ProcessManager> = 
+    Lazy::new(|| ProcessManager::new());
 
-pub struct ProcessMonitor {
+pub struct ProcessManager {
     pub process_infos: DashMap<u32, ProcessInfo>,
     check_interval: u32,
     process_index: AtomicU32,
-    monitor_handle: Mutex<Option<JoinHandle<()>>>,
+    monitor_thread: Mutex<Option<JoinHandle<()>>>,
 }
 
-impl ProcessMonitor {
-    // 创建ProcessMonitor对象
+impl ProcessManager {
+    // 创建ProcessManager对象
     fn new() -> Self {
-        ProcessMonitor {
+        ProcessManager {
             process_infos: DashMap::new(),
             check_interval: 1,
             process_index: AtomicU32::new(0),
-            monitor_handle: Mutex::new(None),
+            monitor_thread: Mutex::new(None),
         }
     }
 
     pub fn start_monitor(&self) {
-        let mut handle = self.monitor_handle.lock().unwrap();
+        let mut handle = self.monitor_thread.lock().unwrap();
         if handle.as_ref().is_some_and(|h| !h.is_finished()) {
             return; // 监控任务已在运行
         }
 
         let new_handle = tokio::spawn(async {
             loop {
-                let ids: Vec<u32> = PROCESS_MONITOR.process_infos.iter()
+                let ids: Vec<u32> = PROCESS_MANAGER.process_infos.iter()
                     .map(|entry| *entry.key())
                     .collect();
 
                 for id in ids {
-                    if let Some(mut entry) = PROCESS_MONITOR.process_infos.get_mut(&id) {
+                    if let Some(mut entry) = PROCESS_MANAGER.process_infos.get_mut(&id) {
                         if let Some(ref mut child) = entry.process {
                             match child.try_wait() {
                                 Ok(Some(exit_status)) => {
@@ -95,13 +95,13 @@ impl ProcessMonitor {
                 }
 
                 time::sleep(Duration::from_secs(
-                    PROCESS_MONITOR.check_interval as u64,
+                    PROCESS_MANAGER.check_interval as u64,
                 ))
                 .await;
             }
         });
 
-        *handle = Some(new_handle);
+        let _ = handle.insert(new_handle);
     }
 
     pub fn start_raw(command: String) -> Result<Child, SenkaError> {

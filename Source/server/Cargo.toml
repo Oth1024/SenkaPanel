@@ -8,7 +8,7 @@ edition = "2024"
 common = { path = "../common" }
 tools = { path = "../tools" }
 directory_monitoring = { path = "../directory_monitoring" }
-fast_command = { path = "../fast_command" }
+task = { path = "../task" }
 
 # framework
 rocket = { workspace = true }

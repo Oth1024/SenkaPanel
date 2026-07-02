@@ -1,5 +1,5 @@
 [package]
-name = "fast_command"
+name = "task"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,7 +7,7 @@ edition = "2024"
 # local crate
 tools = { path = "../tools" }
 common = { path = "../common" }
-process_monitor = { path = "../process_monitor" }
+process_manager = { path = "../process_manager" }
 
 # online crate
 uuid = { workspace = true }
