@@ -23,6 +23,7 @@ uuid = { version = "1.17.0" }
 bcrypt = { version = "0.17.1" }
 chrono = "0.4.44"
 dashmap = "6.2.1"
+sysinfo = "0.38.4"
 # logger
 log = { version = "0.4" }
 log4rs = { version = "1.4.0", features = ["pattern_encoder", "json_encoder"] }

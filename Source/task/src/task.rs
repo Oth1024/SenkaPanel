@@ -10,6 +10,7 @@ pub struct Model {
     pub icon_url: String,
     pub keep_alive: bool,
     pub index: u32,
+    pub associated_process: Option<u32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -18,7 +19,7 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn new(uuid: String, task_name: String, command: String, icon_url: String, keep_alive: bool, index: u32) -> Self {
+    pub fn new(uuid: String, task_name: String, command: String, icon_url: String, keep_alive: bool, index: u32, associated_process: Option<u32>) -> Self {
         Self {
             uuid,
             task_name,
@@ -26,6 +27,7 @@ impl Model {
             icon_url,
             keep_alive,
             index,
+            associated_process,
         }
     }
 }

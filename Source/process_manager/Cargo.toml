@@ -13,3 +13,4 @@ tokio = { workspace = true }
 chrono = { workspace = true }
 dashmap = { workspace = true }
 once_cell = { workspace = true }
+sysinfo = { workspace = true }

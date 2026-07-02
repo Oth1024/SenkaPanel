@@ -7,6 +7,7 @@ use common::senka_error::{SenkaError, SenkaErrorCode};
 use tokio::{process::{self, Child}, task::JoinHandle, time};
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
+use sysinfo::{Pid, System};
 
 #[derive(Debug)]
 /// 定义进程的状态，监控线程会根据状态判断进程的管理逻辑
@@ -29,7 +30,7 @@ pub enum ProcessHandle {
     // 由本进程创建的子进程句柄，支持输入输出控制、状态管理
     Managed(Child),
     // 通过其他方式捕获的进程句柄，仅支持状态管理
-    Orphan()
+    Dued(Pid)
 }
 
 #[derive(Debug)]
@@ -45,8 +46,9 @@ pub struct ProcessInfo {
 impl ProcessInfo {
     pub fn new(process_child: ProcessHandle, command: String, auto_restart: bool, creator: String) -> Self {
         let (process, status) = match process_child {
-            Some(child) => (Some(child), ProcessStatus::Running),
-            None => (None, ProcessStatus::None),
+            ProcessHandle::None => (ProcessHandle::None, ProcessStatus::None),
+            ProcessHandle::Managed(child) => (ProcessHandle::Managed(child), ProcessStatus::Running),
+            ProcessHandle::Dued(pid) => (ProcessHandle::Dued(pid), ProcessStatus::Running)
         };
 
         ProcessInfo {
@@ -57,6 +59,15 @@ impl ProcessInfo {
             creator,
             created_time: Utc::now(),
         }
+    }
+
+    pub fn from_dued(pid: u32, command: String, auto_restart: bool, creator: String) -> Self {
+        Self::new(
+            ProcessHandle::Dued(Pid::from_u32(pid)),
+            command,
+            auto_restart,
+            creator,
+        )
     }
 }
 
@@ -101,28 +112,42 @@ impl ProcessManager {
                 let ids: Vec<u32> = get_process_manager().process_infos.iter()
                     .map(|entry| *entry.key())
                     .collect();
+                let has_dued = get_process_manager().process_infos.iter()
+                    .any(|entry| matches!(entry.process, ProcessHandle::Dued(_)));
+                let system = if has_dued { Some(System::new()) } else { None };
                 for id in ids {
                     if let Some(mut process_info) = get_process_manager().process_infos.get_mut(&id) {
                         // 检查进程实体，并通过进程实体状态更新缓存中的进程信息状态
-                        if let Some(ref mut child) = process_info.process {
-                            match child.try_wait() {
-                                Ok(Some(exit_status)) => {
-                                    // 进程退出，将状态设置为Exited
-                                    process_info.status = ProcessStatus::Exited(
-                                        exit_status.code().unwrap_or(-1),
-                                    );
-                                    process_info.process = None;
-                                }
-                                Ok(None) => {
-                                    // 进程在运行，状态设置为Running
-                                    process_info.status = ProcessStatus::Running;
-                                }
-                                Err(_) => {
-                                    // 获取进程信息异常，认为进程异常/子进程句柄不存在/子进程实体不存在，设置状态为Exited
-                                    process_info.status = ProcessStatus::Exited(-1);
-                                    process_info.process = None;
+                        match &mut process_info.process {
+                            ProcessHandle::Managed(child) => {
+                                match child.try_wait() {
+                                    Ok(Some(exit_status)) => {
+                                        // 进程退出，将状态设置为Exited
+                                        process_info.status = ProcessStatus::Exited(
+                                            exit_status.code().unwrap_or(-1),
+                                        );
+                                        process_info.process = ProcessHandle::None;
+                                    }
+                                    Ok(None) => {
+                                        // 进程在运行，状态设置为Running
+                                        process_info.status = ProcessStatus::Running;
+                                    }
+                                    Err(_) => {
+                                        // 获取进程信息异常，认为进程异常/子进程句柄不存在/子进程实体不存在，设置状态为Exited
+                                        process_info.status = ProcessStatus::Exited(-1);
+                                        process_info.process = ProcessHandle::None;
+                                    }
                                 }
                             }
+                            ProcessHandle::Dued(pid) => {
+                                if let Some(ref entry) = system && entry.process(*pid).is_some() {
+                                    process_info.status = ProcessStatus::Running;
+                                } else {
+                                    process_info.status = ProcessStatus::Exited(-1);
+                                    process_info.process = ProcessHandle::None;
+                                }
+                            }
+                            ProcessHandle::None => {}
                         }
                         // 检查进程状态
                         // 如果是Exited则重新开始
@@ -159,8 +184,8 @@ impl ProcessManager {
         let id = self.process_index.fetch_add(1, Ordering::SeqCst);
         let child_result = process::Command::new(&command).spawn();
         let process_info = match child_result {
-            Ok(child) => ProcessInfo::new(Some(child), command, auto_restart, creator),
-            Err(_) => ProcessInfo::new(None, command, auto_restart, creator),   
+            Ok(child) => ProcessInfo::new(ProcessHandle::Managed(child), command, auto_restart, creator),
+            Err(_) => ProcessInfo::new(ProcessHandle::None, command, auto_restart, creator),   
         };
         self.process_infos.insert(id, process_info);
 
@@ -171,7 +196,7 @@ impl ProcessManager {
     pub fn kill(&self, id: u32) {
         if let Some(mut entry) = self.process_infos.get_mut(&id) {
             entry.status = ProcessStatus::Stopped;
-            if let Some(mut child) = entry.process.take() {
+            if let ProcessHandle::Managed(mut child) = std::mem::replace(&mut entry.process, ProcessHandle::None) {
                 let _ = child.start_kill();
             }
         }
@@ -184,23 +209,29 @@ impl ProcessManager {
         };
 
         let old_child = match self.process_infos.get_mut(&id) {
-            Some(mut entry) => entry.process.take(),
+            Some(mut entry) => std::mem::replace(&mut entry.process, ProcessHandle::None),
             None => return Err(SenkaError::new(SenkaErrorCode::Arguement, format!("Process with id[{}] not exists", id))),
         };
 
-        if let Some(mut child) = old_child {
-            let _ = child.kill().await;
+        match old_child {
+            ProcessHandle::Managed(mut child) => {
+                let _ = child.kill().await;
+            }
+            ProcessHandle::Dued(pid) => {
+                let _ = System::new_all().process(pid).map(|p| p.kill());
+            }
+            ProcessHandle::None => {}
         }
 
         match self.process_infos.get_mut(&id) {
             Some(mut entry) => {
                 match process::Command::new(&command).spawn() {
                     Ok(child) => {
-                        entry.process = Some(child);
+                        entry.process = ProcessHandle::Managed(child);
                         entry.status = ProcessStatus::Running;
                     }
                     Err(_) => {
-                        entry.process = None;
+                        entry.process = ProcessHandle::None;
                         entry.status = ProcessStatus::None;
                     }
                 }
