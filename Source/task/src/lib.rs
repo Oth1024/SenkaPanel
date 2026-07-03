@@ -17,6 +17,8 @@ pub struct Task {
 
     pub command: String,
 
+    pub args: Vec<String>,
+
     pub icon_url: String,
 
     pub keep_alive: bool,
@@ -28,10 +30,12 @@ pub struct Task {
 
 impl Task {
     pub fn from_database_model(model: &task::Model) -> Self {
+        let args: Vec<String> = serde_json::from_str(&model.args).unwrap_or_default();
         Self {
             uuid: model.uuid.clone(),
             task_name: model.task_name.clone(),
             command: model.command.clone(),
+            args,
             icon_url: model.icon_url.clone(),
             keep_alive: model.keep_alive,
             index: model.index,
@@ -44,6 +48,7 @@ impl Task {
             uuid: self.uuid.clone(),
             task_name: self.task_name.clone(),
             command: self.command.clone(),
+            args: serde_json::to_string(&self.args).unwrap_or_default(),
             icon_url: self.icon_url.clone(),
             keep_alive: self.keep_alive,
             index: self.index,
@@ -53,17 +58,18 @@ impl Task {
 }
 
 // 增
-pub async fn create_task_info(id: u128, task_name: String, command: String, icon_url: String, keep_alive: bool, index: u32, associated_process: Option<u32>) {
-    let info = task::ActiveModel {
-        uuid: Set(Uuid::from_u128(id).to_string()),
-        task_name: Set(task_name),
-        command: Set(command),
-        icon_url: Set(icon_url),
-        keep_alive: Set(keep_alive),
-        index: Set(index),
-        associated_process: Set(associated_process),
-    };
-    info.insert(get_db(task::Entity).await).await.unwrap();
+pub async fn create_task_info(id: u128, task_name: String, command: String, args: Vec<String>, icon_url: String, keep_alive: bool, index: u32, associated_process: Option<u32>) {
+    let model = task::Model::new(
+        Uuid::from_u128(id).to_string(),
+        task_name,
+        command,
+        args,
+        icon_url,
+        keep_alive,
+        index,
+        associated_process,
+    );
+    model.into_active_model().insert(get_db(task::Entity).await).await.unwrap();
 }
 
 pub async fn get_all_task_infos() -> Result<Vec<Task>, SenkaError> {
@@ -104,7 +110,7 @@ pub async fn execute_task(uuid: String) -> Result<(), SenkaError> {
             // 不是Task，则直接创建进程
             if !&task.keep_alive {
                 // TODO 完善Creator
-                match get_process_manager().start(task.command.clone(), false, String::from("")) {
+                match get_process_manager().start(task.command.clone(), task.args.clone(), false, String::from("")) {
                     Ok(_) => return Ok(()),
                     Err(senka_error) => Err(senka_error)
                 }
@@ -112,7 +118,7 @@ pub async fn execute_task(uuid: String) -> Result<(), SenkaError> {
             // 否则由ProcessManager托管
             else {
                 // TODO 完善Creator
-                let _ = get_process_manager().start(task.command.clone(), false, String::from(""));
+                let _ = get_process_manager().start(task.command.clone(), task.args.clone(), false, String::from(""));
                 return Ok(());
             }
         }

@@ -4,7 +4,12 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use common::senka_error::{SenkaError, SenkaErrorCode};
-use tokio::{process::{self, Child}, task::JoinHandle, time};
+use tokio::{
+    process::{self, Child, ChildStdin, ChildStdout, ChildStderr},
+    task::JoinHandle,
+    time,
+};
+use std::process::Stdio;
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use sysinfo::{Pid, System};
@@ -38,26 +43,39 @@ pub struct ProcessInfo {
     pub process: ProcessHandle,
     pub status: ProcessStatus,
     pub command: String,
+    pub args: Vec<String>,
     pub auto_restart: bool,
     pub creator: String,
-    pub created_time: DateTime<Utc>
+    pub created_time: DateTime<Utc>,
+    pub stdin: Option<ChildStdin>,
+    pub stdout: Option<ChildStdout>,
+    pub stderr: Option<ChildStderr>,
 }
 
 impl ProcessInfo {
-    pub fn new(process_child: ProcessHandle, command: String, auto_restart: bool, creator: String) -> Self {
-        let (process, status) = match process_child {
-            ProcessHandle::None => (ProcessHandle::None, ProcessStatus::None),
-            ProcessHandle::Managed(child) => (ProcessHandle::Managed(child), ProcessStatus::Running),
-            ProcessHandle::Dued(pid) => (ProcessHandle::Dued(pid), ProcessStatus::Running)
+    pub fn new(process_child: ProcessHandle, command: String, args: Vec<String>, auto_restart: bool, creator: String) -> Self {
+        let (process, status, stdin, stdout, stderr) = match process_child {
+            ProcessHandle::None => (ProcessHandle::None, ProcessStatus::None, None, None, None),
+            ProcessHandle::Managed(mut child) => {
+                let stdin = child.stdin.take();
+                let stdout = child.stdout.take();
+                let stderr = child.stderr.take();
+                (ProcessHandle::Managed(child), ProcessStatus::Running, stdin, stdout, stderr)
+            }
+            ProcessHandle::Dued(pid) => (ProcessHandle::Dued(pid), ProcessStatus::Running, None, None, None)
         };
 
         ProcessInfo {
             process,
             status,
             command,
+            args,
             auto_restart,
             creator,
             created_time: Utc::now(),
+            stdin,
+            stdout,
+            stderr,
         }
     }
 
@@ -65,6 +83,7 @@ impl ProcessInfo {
         Self::new(
             ProcessHandle::Dued(Pid::from_u32(pid)),
             command,
+            vec![],
             auto_restart,
             creator,
         )
@@ -127,6 +146,9 @@ impl ProcessManager {
                                             exit_status.code().unwrap_or(-1),
                                         );
                                         process_info.process = ProcessHandle::None;
+                                        process_info.stdin = None;
+                                        process_info.stdout = None;
+                                        process_info.stderr = None;
                                     }
                                     Ok(None) => {
                                         // 进程在运行，状态设置为Running
@@ -136,6 +158,9 @@ impl ProcessManager {
                                         // 获取进程信息异常，认为进程异常/子进程句柄不存在/子进程实体不存在，设置状态为Exited
                                         process_info.status = ProcessStatus::Exited(-1);
                                         process_info.process = ProcessHandle::None;
+                                        process_info.stdin = None;
+                                        process_info.stdout = None;
+                                        process_info.stderr = None;
                                     }
                                 }
                             }
@@ -145,6 +170,9 @@ impl ProcessManager {
                                 } else {
                                     process_info.status = ProcessStatus::Exited(-1);
                                     process_info.process = ProcessHandle::None;
+                                    process_info.stdin = None;
+                                    process_info.stdout = None;
+                                    process_info.stderr = None;
                                 }
                             }
                             ProcessHandle::None => {}
@@ -180,12 +208,20 @@ impl ProcessManager {
         }
     }
 
-    pub fn start(&self, command: String, auto_restart:bool, creator: String) -> Result<u32, SenkaError> {
+    pub fn start(&self, command: String, args: Vec<String>, auto_restart:bool, creator: String) -> Result<u32, SenkaError> {
         let id = self.process_index.fetch_add(1, Ordering::SeqCst);
-        let child_result = process::Command::new(&command).spawn();
+        let mut cmd = process::Command::new(&command);
+        for arg in &args {
+            cmd.arg(arg);
+        }
+        let child_result = cmd
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn();
         let process_info = match child_result {
-            Ok(child) => ProcessInfo::new(ProcessHandle::Managed(child), command, auto_restart, creator),
-            Err(_) => ProcessInfo::new(ProcessHandle::None, command, auto_restart, creator),   
+            Ok(child) => ProcessInfo::new(ProcessHandle::Managed(child), command, args, auto_restart, creator),
+            Err(_) => ProcessInfo::new(ProcessHandle::None, command, args, auto_restart, creator),   
         };
         self.process_infos.insert(id, process_info);
 
@@ -196,6 +232,9 @@ impl ProcessManager {
     pub fn kill(&self, id: u32) {
         if let Some(mut entry) = self.process_infos.get_mut(&id) {
             entry.status = ProcessStatus::Stopped;
+            entry.stdin = None;
+            entry.stdout = None;
+            entry.stderr = None;
             if let ProcessHandle::Managed(mut child) = std::mem::replace(&mut entry.process, ProcessHandle::None) {
                 let _ = child.start_kill();
             }
@@ -203,8 +242,8 @@ impl ProcessManager {
     }
 
     pub async fn restart(&self, id: u32) -> Result<(), SenkaError> {
-        let command = match self.process_infos.get(&id) {
-            Some(info) => info.command.clone(),
+        let (command, args) = match self.process_infos.get(&id) {
+            Some(info) => (info.command.clone(), info.args.clone()),
             None => return Err(SenkaError::new(SenkaErrorCode::Arguement, format!("Process with id[{}] not exists", id))),
         };
 
@@ -225,12 +264,26 @@ impl ProcessManager {
 
         match self.process_infos.get_mut(&id) {
             Some(mut entry) => {
-                match process::Command::new(&command).spawn() {
-                    Ok(child) => {
+                let mut cmd = process::Command::new(&command);
+                for arg in &args {
+                    cmd.arg(arg);
+                }
+                match cmd
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn() {
+                    Ok(mut child) => {
+                        entry.stdin = child.stdin.take();
+                        entry.stdout = child.stdout.take();
+                        entry.stderr = child.stderr.take();
                         entry.process = ProcessHandle::Managed(child);
                         entry.status = ProcessStatus::Running;
                     }
                     Err(_) => {
+                        entry.stdin = None;
+                        entry.stdout = None;
+                        entry.stderr = None;
                         entry.process = ProcessHandle::None;
                         entry.status = ProcessStatus::None;
                     }

@@ -13,3 +13,4 @@ process_manager = { path = "../process_manager" }
 uuid = { workspace = true }
 sea-orm = { workspace = true }
 sqlx-sqlite = { workspace = true }
+serde_json = { workspace = true }

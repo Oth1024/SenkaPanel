@@ -3198,6 +3198,7 @@ dependencies = [
  "common",
  "process_manager",
  "sea-orm",
+ "serde_json",
  "sqlx-sqlite",
  "tools",
  "uuid",
