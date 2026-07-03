@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
     #[tokio::test]
-    /// 测试下发单次执行的任务——等待进程结束后读取全部输出
+    /// 测试通过 broadcast 管道实时捕获子进程 stdout 输出
     async fn test_raw_task() {
-        use process_manager::{get_process_manager, ProcessHandle};
-        use tokio::io::AsyncReadExt;
+        use process_manager::get_process_manager;
+        use tokio::sync::broadcast::error::RecvError;
 
         let manager = get_process_manager();
 
@@ -16,40 +16,36 @@ mod tests {
         )
         .unwrap();
 
-        // RefMut 不能跨 .await，所以先移出 Child，wait 完再放回去
-        let child = {
-            let mut info = manager.process_infos.get_mut(&id).unwrap();
-            std::mem::replace(&mut info.process, ProcessHandle::None)
+        // 订阅 stdout，无需关心进程状态，管道自动关闭时 recv 返回 Closed
+        let mut rx = {
+            let info = manager.process_infos.get(&id).unwrap();
+            info.subscribe_stdout().unwrap()
         };
-        if let ProcessHandle::Managed(mut child) = child {
-            let _ = child.wait().await;
-            // wait 完放回 ProcessInfo，保持结构完整性
-            if let Some(mut info) = manager.process_infos.get_mut(&id) {
-                info.process = ProcessHandle::Managed(child);
+
+        let mut output = String::new();
+        loop {
+            match rx.recv().await {
+                Ok(line) => {
+                    output.push_str(&line);
+                    output.push('\n');
+                }
+                Err(RecvError::Closed) => break,
+                Err(RecvError::Lagged(_)) => continue,
             }
         }
 
-        // 进程已退出，管道 EOF，read_to_end 正常返回
-        let mut output = Vec::new();
-        if let Some(mut info) = manager.process_infos.get_mut(&id) {
-            if let Some(ref mut stdout) = info.stdout {
-                stdout.read_to_end(&mut output).await.unwrap();
-            }
-        }
-
-        println!("子进程输出: {:?}", String::from_utf8_lossy(&output));
-        assert!(String::from_utf8_lossy(&output).contains("hello world"));
+        println!("子进程输出: {:?}", output);
+        assert!(output.contains("hello world"));
     }
 
     #[tokio::test]
-    /// 测试进程运行中实时捕获输出——进程循环输出，不等待退出
+    /// 测试循环输出进程中实时逐行捕获
     async fn test_live_output() {
-        use process_manager::{get_process_manager, ProcessHandle};
-        use tokio::io::AsyncBufReadExt;
+        use process_manager::get_process_manager;
+        use tokio::sync::broadcast::error::RecvError;
 
         let manager = get_process_manager();
 
-        // 启动一个循环输出进程（Windows 每 2 秒输出一行，共 3 次）
         let id = manager.start(
             "cmd".to_string(),
             vec![
@@ -61,46 +57,25 @@ mod tests {
         )
         .unwrap();
 
-        // 取出 stdout 的所有权（BufReader 需要所有权）
-        let stdout = {
-            let mut info = manager.process_infos.get_mut(&id).unwrap();
-            info.stdout.take()
+        let mut rx = {
+            let info = manager.process_infos.get(&id).unwrap();
+            info.subscribe_stdout().unwrap()
         };
 
-        if let Some(stdout) = stdout {
-            let mut reader = tokio::io::BufReader::new(stdout).lines();
-            let mut count = 0;
-
-            // 边运行边逐行读，读到 3 行就停
-            while let Ok(Some(line)) =
-                tokio::time::timeout(std::time::Duration::from_secs(10), reader.next_line())
-                    .await
-                    .unwrap_or(Ok(None))
-            {
-                println!("实时捕获: {}", line);
-                count += 1;
-                if count >= 3 {
-                    break;
+        let mut count = 0;
+        while count < 3 {
+            match tokio::time::timeout(std::time::Duration::from_secs(10), rx.recv()).await {
+                Ok(Ok(line)) => {
+                    println!("实时捕获: {}", line);
+                    count += 1;
                 }
-            }
-
-            assert_eq!(count, 3);
-        }
-
-        // 清理进程，同样移出、kill、放回
-        let child = {
-            let mut info = manager.process_infos.get_mut(&id).unwrap();
-            std::mem::replace(&mut info.process, ProcessHandle::None)
-        };
-        if let ProcessHandle::Managed(mut child) = child {
-            let _ = child.kill().await;
-            if let Some(mut info) = manager.process_infos.get_mut(&id) {
-                info.process = ProcessHandle::Managed(child);
-                info.stdin = None;
-                info.stdout = None;
-                info.stderr = None;
+                Ok(Err(RecvError::Closed)) => break,
+                Ok(Err(RecvError::Lagged(_))) => continue,
+                Err(_) => break,
             }
         }
+
+        assert_eq!(count, 3);
     }
 
     #[tokio::test]

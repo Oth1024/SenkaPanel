@@ -5,7 +5,10 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use common::senka_error::{SenkaError, SenkaErrorCode};
 use tokio::{
+    io::{BufReader, AsyncBufReadExt},
     process::{self, Child, ChildStdin, ChildStdout, ChildStderr},
+    sync::broadcast,
+    sync::mpsc,
     task::JoinHandle,
     time,
 };
@@ -40,53 +43,83 @@ pub enum ProcessHandle {
 
 #[derive(Debug)]
 pub struct ProcessInfo {
-    pub process: ProcessHandle,
+    process: ProcessHandle,
     pub status: ProcessStatus,
     pub command: String,
     pub args: Vec<String>,
     pub auto_restart: bool,
     pub creator: String,
     pub created_time: DateTime<Utc>,
-    pub stdin: Option<ChildStdin>,
-    pub stdout: Option<ChildStdout>,
-    pub stderr: Option<ChildStderr>,
+    stdin_tx: Option<mpsc::Sender<String>>,
+    stdout_rx: Option<broadcast::Receiver<String>>,
+    stderr_rx: Option<broadcast::Receiver<String>>,
 }
 
 impl ProcessInfo {
-    pub fn new(process_child: ProcessHandle, command: String, args: Vec<String>, auto_restart: bool, creator: String) -> Self {
-        let (process, status, stdin, stdout, stderr) = match process_child {
-            ProcessHandle::None => (ProcessHandle::None, ProcessStatus::None, None, None, None),
-            ProcessHandle::Managed(mut child) => {
-                let stdin = child.stdin.take();
-                let stdout = child.stdout.take();
-                let stderr = child.stderr.take();
-                (ProcessHandle::Managed(child), ProcessStatus::Running, stdin, stdout, stderr)
-            }
-            ProcessHandle::Dued(pid) => (ProcessHandle::Dued(pid), ProcessStatus::Running, None, None, None)
-        };
-
+    /// 外部创建时使用start方法
+    /// 单独使用new方法不会启动监控
+    /// 也不会订阅输入输出管道
+    pub fn new(
+        command: String, 
+        args: Vec<String>, 
+        auto_restart: bool, 
+        creator: String,
+    ) -> Self {
+        // 构造时不创建消息通道
         ProcessInfo {
-            process,
-            status,
+            process: ProcessHandle::None,
+            status: ProcessStatus::None,
             command,
             args,
             auto_restart,
             creator,
             created_time: Utc::now(),
-            stdin,
-            stdout,
-            stderr,
+            stdin_tx: None,
+            stdout_rx: None,
+            stderr_rx: None,
         }
     }
 
+    /// 通过非托管进程创建ProcessInfo，这种情况下不支持输入输出控制
+    /// 适用于需要管理进程的生命周期，但是不关系进程的输入输出的情况
     pub fn from_dued(pid: u32, command: String, auto_restart: bool, creator: String) -> Self {
-        Self::new(
-            ProcessHandle::Dued(Pid::from_u32(pid)),
+        let pid_entitiy = Pid::from_u32(pid);
+        let mut system = System::new();
+        system.refresh_all();
+        let process = system.process(pid_entitiy);
+        let status = if process.is_some() { ProcessStatus::Running } else { ProcessStatus::None };
+        ProcessInfo {
+            process: ProcessHandle::Dued(pid_entitiy),
+            status,
             command,
-            vec![],
+            args: vec![],
             auto_restart,
             creator,
-        )
+            created_time: Utc::now(),
+            stdin_tx: None,
+            stdout_rx: None,
+            stderr_rx: None,
+        }
+    }
+
+    /// 获取std output的一个输出通道
+    pub fn get_stdout_recv(&self) -> Option<broadcast::Receiver<String>> {
+        self.stdout_rx.as_ref().map(|rx| rx.resubscribe())
+    }
+
+    /// 获取std error的一个输出通道
+    pub fn get_stderr_recv(&self) -> Option<broadcast::Receiver<String>> {
+        self.stderr_rx.as_ref().map(|rx| rx.resubscribe())
+    }
+
+    /// 获取std in的一个输入通道
+    pub fn get_stdin_sender(&self) -> Option<mpsc::Sender<String>> {
+        self.stdin_tx.clone()
+    }
+
+    // 更新Process，同时更新输入、输出管道
+    fn update_process(&mut self, process: ProcessHandle) {
+        self.stdin_tx = process.stdin;
     }
 }
 
@@ -145,10 +178,7 @@ impl ProcessManager {
                                         process_info.status = ProcessStatus::Exited(
                                             exit_status.code().unwrap_or(-1),
                                         );
-                                        process_info.process = ProcessHandle::None;
-                                        process_info.stdin = None;
-                                        process_info.stdout = None;
-                                        process_info.stderr = None;
+                                        process_info.update_process(ProcessHandle::None);
                                     }
                                     Ok(None) => {
                                         // 进程在运行，状态设置为Running
@@ -157,10 +187,7 @@ impl ProcessManager {
                                     Err(_) => {
                                         // 获取进程信息异常，认为进程异常/子进程句柄不存在/子进程实体不存在，设置状态为Exited
                                         process_info.status = ProcessStatus::Exited(-1);
-                                        process_info.process = ProcessHandle::None;
-                                        process_info.stdin = None;
-                                        process_info.stdout = None;
-                                        process_info.stderr = None;
+                                        process_info.update_process(ProcessHandle::None);
                                     }
                                 }
                             }
@@ -169,10 +196,7 @@ impl ProcessManager {
                                     process_info.status = ProcessStatus::Running;
                                 } else {
                                     process_info.status = ProcessStatus::Exited(-1);
-                                    process_info.process = ProcessHandle::None;
-                                    process_info.stdin = None;
-                                    process_info.stdout = None;
-                                    process_info.stderr = None;
+                                    process_info.update_process(ProcessHandle::None);
                                 }
                             }
                             ProcessHandle::None => {}
@@ -219,10 +243,11 @@ impl ProcessManager {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn();
-        let process_info = match child_result {
-            Ok(child) => ProcessInfo::new(ProcessHandle::Managed(child), command, args, auto_restart, creator),
-            Err(_) => ProcessInfo::new(ProcessHandle::None, command, args, auto_restart, creator),   
-        };
+        let mut process_info = ProcessInfo::new(command, args, auto_restart, creator);
+        // 如果创建子进程成功，则将其更新到ProcessInfo中并订阅其输入输出管道
+        if let Ok(child) = child_result {
+            process_info.update_process(ProcessHandle::Managed(child));
+        }
         self.process_infos.insert(id, process_info);
 
         Ok(id)
@@ -232,9 +257,6 @@ impl ProcessManager {
     pub fn kill(&self, id: u32) {
         if let Some(mut entry) = self.process_infos.get_mut(&id) {
             entry.status = ProcessStatus::Stopped;
-            entry.stdin = None;
-            entry.stdout = None;
-            entry.stderr = None;
             if let ProcessHandle::Managed(mut child) = std::mem::replace(&mut entry.process, ProcessHandle::None) {
                 let _ = child.start_kill();
             }
@@ -273,17 +295,11 @@ impl ProcessManager {
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
                     .spawn() {
-                    Ok(mut child) => {
-                        entry.stdin = child.stdin.take();
-                        entry.stdout = child.stdout.take();
-                        entry.stderr = child.stderr.take();
-                        entry.process = ProcessHandle::Managed(child);
+                    Ok(child) => {
+                        entry.update_process(ProcessHandle::Managed(child));
                         entry.status = ProcessStatus::Running;
                     }
                     Err(_) => {
-                        entry.stdin = None;
-                        entry.stdout = None;
-                        entry.stderr = None;
                         entry.process = ProcessHandle::None;
                         entry.status = ProcessStatus::None;
                     }

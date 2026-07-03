@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 
 pub mod def;
 
-pub static FS_WATCHER: Lazy<Mutex<HashMap<String, ReadDirectoryChangesWatcher>>> =
+static FS_WATCHER: Lazy<Mutex<HashMap<String, ReadDirectoryChangesWatcher>>> =
     Lazy::new(||Mutex::new(HashMap::<String, ReadDirectoryChangesWatcher>::new()));
 
 pub fn get_fs_watcher() -> &'static Mutex<HashMap<String, ReadDirectoryChangesWatcher>> {
