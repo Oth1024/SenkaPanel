@@ -119,7 +119,70 @@ impl ProcessInfo {
 
     // 更新Process，同时更新输入、输出管道
     fn update_process(&mut self, process: ProcessHandle) {
-        self.stdin_tx = process.stdin;
+        match process {
+            ProcessHandle::Managed(mut child) => {
+                // 1. 标准输入：mpsc channel，后台任务将接收到的 String 写入 ChildStdin
+                if let Some(mut stdin) = child.stdin.take() {
+                    let (tx, mut rx) = mpsc::channel::<String>(64);
+                    self.stdin_tx = Some(tx);
+                    tokio::spawn(async move {
+                        use tokio::io::AsyncWriteExt;
+                        while let Some(line) = rx.recv().await {
+                            let _ = stdin.write_all(line.as_bytes()).await;
+                        }
+                    });
+                }
+
+                // 2. 标准输出：broadcast channel，后台任务逐行读取并广播
+                if let Some(stdout) = child.stdout.take() {
+                    let (tx, rx) = broadcast::channel::<String>(64);
+                    self.stdout_rx = Some(rx);
+                    let mut reader = BufReader::new(stdout);
+                    tokio::spawn(async move {
+                        let mut line = String::new();
+                        loop {
+                            match reader.read_line(&mut line).await {
+                                Ok(0) => break,
+                                Ok(_) => {
+                                    if line.ends_with('\n') { line.pop(); }
+                                    if line.ends_with('\r') { line.pop(); }
+                                    let _ = tx.send(line.clone());
+                                    line.clear();
+                                }
+                                Err(_) => break,
+                            }
+                        }
+                    });
+                }
+
+                // 3. 标准错误：与 stdout 同理
+                if let Some(stderr) = child.stderr.take() {
+                    let (tx, rx) = broadcast::channel::<String>(64);
+                    self.stderr_rx = Some(rx);
+                    let mut reader = BufReader::new(stderr);
+                    tokio::spawn(async move {
+                        let mut line = String::new();
+                        loop {
+                            match reader.read_line(&mut line).await {
+                                Ok(0) => break,
+                                Ok(_) => {
+                                    if line.ends_with('\n') { line.pop(); }
+                                    if line.ends_with('\r') { line.pop(); }
+                                    let _ = tx.send(line.clone());
+                                    line.clear();
+                                }
+                                Err(_) => break,
+                            }
+                        }
+                    });
+                }
+
+                self.process = ProcessHandle::Managed(child);
+            }
+            _ => {
+                self.process = process;
+            }
+        }
     }
 }
 
