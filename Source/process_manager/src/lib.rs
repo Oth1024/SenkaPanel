@@ -17,6 +17,8 @@ use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use sysinfo::{Pid, System};
 
+use crate::ProcessHandle::Managed;
+
 #[derive(Debug)]
 /// 定义进程的状态，监控线程会根据状态判断进程的管理逻辑
 pub enum ProcessStatus {
@@ -42,17 +44,50 @@ pub enum ProcessHandle {
 }
 
 #[derive(Debug)]
+/// 从 Child 中提取的原始输入输出管道
+struct PipeDispatcher {
+    stdin: Option<ChildStdin>,
+    stdout: Option<ChildStdout>,
+    stderr: Option<ChildStderr>,
+
+    stdin_rx: mpsc::Receiver<String>,
+    stdout_tx: broadcast::Sender<String>,
+    stderr_tx: broadcast::Sender<String>
+}
+
+impl PipeDispatcher {
+    fn new(stdin_rx: mpsc::Receiver<String>, stdout_tx: broadcast::Sender<String>, stderr_tx: broadcast::Sender<String>) -> Self {
+        PipeDispatcher {
+            stdin: None,
+            stdout: None,
+            stderr: None,
+            stdin_rx,
+            stdout_tx,
+            stderr_tx
+        }
+    }
+
+    fn update(&mut self, stdin: ChildStdin, stdout: ChildStdout, stderr: ChildStderr) {
+        self.stdin.replace(stdin);
+        self.stdout.replace(stdout);
+        self.stderr.replace(stderr);
+    }
+}
+
+#[derive(Debug)]
 pub struct ProcessInfo {
-    process: ProcessHandle,
     pub status: ProcessStatus,
     pub command: String,
     pub args: Vec<String>,
     pub auto_restart: bool,
     pub creator: String,
     pub created_time: DateTime<Utc>,
+
+    process: ProcessHandle,
     stdin_tx: Option<mpsc::Sender<String>>,
     stdout_rx: Option<broadcast::Receiver<String>>,
     stderr_rx: Option<broadcast::Receiver<String>>,
+    pipe_dispatcher: Option<PipeDispatcher>,
 }
 
 impl ProcessInfo {
@@ -65,18 +100,22 @@ impl ProcessInfo {
         auto_restart: bool, 
         creator: String,
     ) -> Self {
-        // 构造时不创建消息通道
+        // 构造时创建消息通道，后续monitor循环中使用
+        let (stdin_tx, stdin_rx) = mpsc::channel::<String>(64);
+        let (stdout_tx, stdout_rx) = broadcast::channel::<String>(64);
+        let (stderr_tx, stderr_rx) = broadcast::channel::<String>(64);
         ProcessInfo {
-            process: ProcessHandle::None,
             status: ProcessStatus::None,
             command,
             args,
             auto_restart,
             creator,
             created_time: Utc::now(),
-            stdin_tx: None,
-            stdout_rx: None,
-            stderr_rx: None,
+            process: ProcessHandle::None,
+            stdin_tx: Some(stdin_tx),
+            stdout_rx: Some(stdout_rx),
+            stderr_rx: Some(stderr_rx),
+            pipe_dispatcher: Some(PipeDispatcher::new(stdin_rx, stdout_tx, stderr_tx)),
         }
     }
 
@@ -99,6 +138,7 @@ impl ProcessInfo {
             stdin_tx: None,
             stdout_rx: None,
             stderr_rx: None,
+            pipe_dispatcher: None,
         }
     }
 
@@ -117,72 +157,25 @@ impl ProcessInfo {
         self.stdin_tx.clone()
     }
 
-    // 更新Process，同时更新输入、输出管道
-    fn update_process(&mut self, process: ProcessHandle) {
+    // 更新ProcessHandle，同时更新分发
+    fn update_process(&mut self, mut process: ProcessHandle) {
         match process {
-            ProcessHandle::Managed(mut child) => {
-                // 1. 标准输入：mpsc channel，后台任务将接收到的 String 写入 ChildStdin
-                if let Some(mut stdin) = child.stdin.take() {
-                    let (tx, mut rx) = mpsc::channel::<String>(64);
-                    self.stdin_tx = Some(tx);
-                    tokio::spawn(async move {
-                        use tokio::io::AsyncWriteExt;
-                        while let Some(line) = rx.recv().await {
-                            let _ = stdin.write_all(line.as_bytes()).await;
-                        }
-                    });
+            // 如果是chlid，则从中提取stdin、stdout、stderr，然后存到dispatcher中
+            ProcessHandle::Managed(ref mut child) => {
+                if let (Some(stdin), Some(stdout), Some(stderr)) = (
+                    child.stdin.take(),
+                    child.stdout.take(),
+                    child.stderr.take(),
+                ) {
+                    if let Some(ref mut dispatcher) = self.pipe_dispatcher {
+                        dispatcher.update(stdin, stdout, stderr);
+                    }
                 }
-
-                // 2. 标准输出：broadcast channel，后台任务逐行读取并广播
-                if let Some(stdout) = child.stdout.take() {
-                    let (tx, rx) = broadcast::channel::<String>(64);
-                    self.stdout_rx = Some(rx);
-                    let mut reader = BufReader::new(stdout);
-                    tokio::spawn(async move {
-                        let mut line = String::new();
-                        loop {
-                            match reader.read_line(&mut line).await {
-                                Ok(0) => break,
-                                Ok(_) => {
-                                    if line.ends_with('\n') { line.pop(); }
-                                    if line.ends_with('\r') { line.pop(); }
-                                    let _ = tx.send(line.clone());
-                                    line.clear();
-                                }
-                                Err(_) => break,
-                            }
-                        }
-                    });
-                }
-
-                // 3. 标准错误：与 stdout 同理
-                if let Some(stderr) = child.stderr.take() {
-                    let (tx, rx) = broadcast::channel::<String>(64);
-                    self.stderr_rx = Some(rx);
-                    let mut reader = BufReader::new(stderr);
-                    tokio::spawn(async move {
-                        let mut line = String::new();
-                        loop {
-                            match reader.read_line(&mut line).await {
-                                Ok(0) => break,
-                                Ok(_) => {
-                                    if line.ends_with('\n') { line.pop(); }
-                                    if line.ends_with('\r') { line.pop(); }
-                                    let _ = tx.send(line.clone());
-                                    line.clear();
-                                }
-                                Err(_) => break,
-                            }
-                        }
-                    });
-                }
-
-                self.process = ProcessHandle::Managed(child);
             }
-            _ => {
-                self.process = process;
-            }
+            // 一般不会进入此分支，更新的子进程一定为child
+            _ => {}
         }
+        self.process = process;
     }
 }
 
@@ -241,7 +234,6 @@ impl ProcessManager {
                                         process_info.status = ProcessStatus::Exited(
                                             exit_status.code().unwrap_or(-1),
                                         );
-                                        process_info.update_process(ProcessHandle::None);
                                     }
                                     Ok(None) => {
                                         // 进程在运行，状态设置为Running
@@ -250,7 +242,6 @@ impl ProcessManager {
                                     Err(_) => {
                                         // 获取进程信息异常，认为进程异常/子进程句柄不存在/子进程实体不存在，设置状态为Exited
                                         process_info.status = ProcessStatus::Exited(-1);
-                                        process_info.update_process(ProcessHandle::None);
                                     }
                                 }
                             }
@@ -265,12 +256,16 @@ impl ProcessManager {
                             ProcessHandle::None => {}
                         }
                         // 检查进程状态
-                        // 如果是Exited则重新开始
+                        // 如果是None或Exited则重新开始
                         // 如果是Running则DONOTHING
                         // 如果是Stopped则DONOTHING
-                        if let ProcessStatus::Exited(_) = process_info.status && process_info.auto_restart {
-                            let _ = get_process_manager().restart(id).await;
+                        match process_info.status {
+                            ProcessStatus::None | ProcessStatus::Exited(_) => {
+                                let _ = get_process_manager().restart(id).await;
+                            }
+                            _ => {}
                         }
+                        
                     }
                 }
 
@@ -297,22 +292,8 @@ impl ProcessManager {
 
     pub fn start(&self, command: String, args: Vec<String>, auto_restart:bool, creator: String) -> Result<u32, SenkaError> {
         let id = self.process_index.fetch_add(1, Ordering::SeqCst);
-        let mut cmd = process::Command::new(&command);
-        for arg in &args {
-            cmd.arg(arg);
-        }
-        let child_result = cmd
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn();
-        let mut process_info = ProcessInfo::new(command, args, auto_restart, creator);
-        // 如果创建子进程成功，则将其更新到ProcessInfo中并订阅其输入输出管道
-        if let Ok(child) = child_result {
-            process_info.update_process(ProcessHandle::Managed(child));
-        }
+        let process_info = ProcessInfo::new(command, args, auto_restart, creator);
         self.process_infos.insert(id, process_info);
-
         Ok(id)
     }
 
