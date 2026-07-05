@@ -121,25 +121,20 @@ impl ProcessInfo {
 
     /// 通过非托管进程创建ProcessInfo，这种情况下不支持输入输出控制
     /// 适用于需要管理进程的生命周期，但是不关系进程的输入输出的情况
-    pub fn from_dued(pid: u32, command: String, auto_restart: bool, creator: String) -> Self {
+    pub fn from_dued(
+        pid: u32,
+        command: String,
+        args: Vec<String>,
+         auto_restart: bool,
+         creator: String) -> Self {
         let pid_entitiy = Pid::from_u32(pid);
         let mut system = System::new();
         system.refresh_all();
         let process = system.process(pid_entitiy);
         let status = if process.is_some() { ProcessStatus::Running } else { ProcessStatus::None };
-        ProcessInfo {
-            process: ProcessHandle::Dued(pid_entitiy),
-            status,
-            command,
-            args: vec![],
-            auto_restart,
-            creator,
-            created_time: Utc::now(),
-            stdin_tx: None,
-            stdout_rx: None,
-            stderr_rx: None,
-            pipe_dispatcher: None,
-        }
+        let mut process_info = ProcessInfo::new(command, args, auto_restart, creator);
+        process_info.process = ProcessHandle::Dued(pid_entitiy);
+        process_info
     }
 
     /// 获取std output的一个输出通道
