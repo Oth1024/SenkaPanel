@@ -1,11 +1,11 @@
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::Mutex;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use common::senka_error::{SenkaError, SenkaErrorCode};
 use tokio::{
-    io::{BufReader, AsyncBufReadExt},
+    io::{AsyncWriteExt, BufReader, AsyncBufReadExt},
     process::{self, Child, ChildStdin, ChildStdout, ChildStderr},
     sync::broadcast,
     sync::mpsc,
@@ -46,9 +46,9 @@ pub enum ProcessHandle {
 #[derive(Debug)]
 /// 从 Child 中提取的原始输入输出管道
 struct PipeDispatcher {
-    stdin: Option<ChildStdin>,
-    stdout: Option<ChildStdout>,
-    stderr: Option<ChildStderr>,
+    stdin: Option<Arc<tokio::sync::Mutex<ChildStdin>>>,
+    stdout_reader: Option<BufReader<ChildStdout>>,
+    stderr_reader: Option<BufReader<ChildStderr>>,
 
     stdin_rx: mpsc::Receiver<String>,
     stdout_tx: broadcast::Sender<String>,
@@ -59,8 +59,8 @@ impl PipeDispatcher {
     fn new(stdin_rx: mpsc::Receiver<String>, stdout_tx: broadcast::Sender<String>, stderr_tx: broadcast::Sender<String>) -> Self {
         PipeDispatcher {
             stdin: None,
-            stdout: None,
-            stderr: None,
+            stdout_reader: None,
+            stderr_reader: None,
             stdin_rx,
             stdout_tx,
             stderr_tx
@@ -68,9 +68,9 @@ impl PipeDispatcher {
     }
 
     fn update(&mut self, stdin: ChildStdin, stdout: ChildStdout, stderr: ChildStderr) {
-        self.stdin.replace(stdin);
-        self.stdout.replace(stdout);
-        self.stderr.replace(stderr);
+        self.stdin.replace(Arc::new(tokio::sync::Mutex::new(stdin)));
+        self.stdout_reader.replace(BufReader::new(stdout));
+        self.stderr_reader.replace(BufReader::new(stderr));
     }
 }
 
@@ -260,7 +260,39 @@ impl ProcessManager {
                             }
                             _ => {}
                         }
-                        
+                        // 处理stdin输入：从stdin_rx接收数据，spawn异步写入，不阻塞轮询
+                        if let Some(ref mut dispatcher) = process_info.pipe_dispatcher {
+                            if let Some(ref stdin) = dispatcher.stdin {
+                                if let Ok(data) = dispatcher.stdin_rx.try_recv() {
+                                    let stdin = stdin.clone();
+                                    tokio::spawn(async move {
+                                        let mut guard = stdin.lock().await;
+                                        let _ = guard.write_all(data.as_bytes()).await;
+                                        let _ = guard.flush().await;
+                                    });
+                                }
+                            }
+                            // 读取stdout输出，写入stdout_tx
+                            if let Some(ref mut reader) = dispatcher.stdout_reader {
+                                let mut line = String::new();
+                                match tokio::time::timeout(Duration::ZERO, reader.read_line(&mut line)).await {
+                                    Ok(Ok(n)) if n > 0 => {
+                                        let _ = dispatcher.stdout_tx.send(line);
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            // 读取stderr输出，写入stderr_tx
+                            if let Some(ref mut reader) = dispatcher.stderr_reader {
+                                let mut line = String::new();
+                                match tokio::time::timeout(Duration::ZERO, reader.read_line(&mut line)).await {
+                                    Ok(Ok(n)) if n > 0 => {
+                                        let _ = dispatcher.stderr_tx.send(line);
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
                     }
                 }
 
