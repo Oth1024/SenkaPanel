@@ -251,14 +251,18 @@ impl ProcessManager {
                             ProcessHandle::None => {}
                         }
                         // 检查进程状态
-                        // 如果是None或Exited则重新开始
+                        // 如果是None，说明进程没有正确创建，则需创建Process
                         // 如果是Running则DONOTHING
                         // 如果是Stopped则DONOTHING
+                        // 如果是Exited，则说明进程结束，如果这时检测到auto restart标志则需自动重启
+                        let mut do_restart = false;
                         match process_info.status {
-                            ProcessStatus::None | ProcessStatus::Exited(_) => {
-                                let _ = get_process_manager().restart(id).await;
-                            }
+                            ProcessStatus::None => do_restart = true,
+                            ProcessStatus::Exited(_) if process_info.auto_restart => do_restart = true,
                             _ => {}
+                        }
+                        if do_restart {
+                            let _ = get_process_manager().restart_entry(&mut *process_info);
                         }
                         // 处理stdin输入：从stdin_rx接收数据，spawn异步写入，不阻塞轮询
                         if let Some(ref mut dispatcher) = process_info.pipe_dispatcher {
@@ -334,49 +338,51 @@ impl ProcessManager {
         }
     }
 
-    pub async fn restart(&self, id: u32) -> Result<(), SenkaError> {
-        let (command, args) = match self.process_infos.get(&id) {
-            Some(info) => (info.command.clone(), info.args.clone()),
-            None => return Err(SenkaError::new(SenkaErrorCode::Arguement, format!("Process with id[{}] not exists", id))),
-        };
-
-        let old_child = match self.process_infos.get_mut(&id) {
-            Some(mut entry) => std::mem::replace(&mut entry.process, ProcessHandle::None),
-            None => return Err(SenkaError::new(SenkaErrorCode::Arguement, format!("Process with id[{}] not exists", id))),
-        };
-
-        match old_child {
-            ProcessHandle::Managed(mut child) => {
-                let _ = child.kill().await;
-            }
-            ProcessHandle::Dued(pid) => {
-                let _ = System::new_all().process(pid).map(|p| p.kill());
-            }
-            ProcessHandle::None => {}
-        }
-
+    /// 通过 id 重启进程，供外部调用
+    pub fn restart_by_id(&self, id: u32) -> Result<(), SenkaError> {
         match self.process_infos.get_mut(&id) {
-            Some(mut entry) => {
-                let mut cmd = process::Command::new(&command);
-                for arg in &args {
-                    cmd.arg(arg);
+            Some(mut entry) => self.restart_entry(&mut *entry),
+            None => Err(SenkaError::new(SenkaErrorCode::Arguement, format!("Process with id[{}] not exists", id))),
+        }
+    }
+
+    /// 直接操作 ProcessInfo 重启进程，供轮询等已持有引用的场景调用
+    pub fn restart_entry(&self, entry: &mut ProcessInfo) -> Result<(), SenkaError> {
+        let command = entry.command.clone();
+        let args = entry.args.clone();
+        let old_child = std::mem::replace(&mut entry.process, ProcessHandle::None);
+
+        // 杀掉旧进程放到后台，不阻塞
+        tokio::spawn(async move {
+            match old_child {
+                ProcessHandle::Managed(mut child) => {
+                    let _ = child.kill().await;
                 }
-                match cmd
-                    .stdin(Stdio::piped())
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .spawn() {
-                    Ok(child) => {
-                        entry.update_process(ProcessHandle::Managed(child));
-                        entry.status = ProcessStatus::Running;
-                    }
-                    Err(_) => {
-                        entry.process = ProcessHandle::None;
-                        entry.status = ProcessStatus::None;
-                    }
+                ProcessHandle::Dued(pid) => {
+                    let _ = System::new_all().process(pid).map(|p| p.kill());
                 }
+                ProcessHandle::None => {}
             }
-            None => {}
+        });
+
+        let mut cmd = process::Command::new(&command);
+        for arg in &args {
+            cmd.arg(arg);
+        }
+        match cmd
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+        {
+            Ok(child) => {
+                entry.update_process(ProcessHandle::Managed(child));
+                entry.status = ProcessStatus::Running;
+            }
+            Err(_) => {
+                entry.process = ProcessHandle::None;
+                entry.status = ProcessStatus::None;
+            }
         }
 
         Ok(())
