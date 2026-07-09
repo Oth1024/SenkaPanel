@@ -1,7 +1,6 @@
 use common::senka_error::{self, SenkaError, SenkaErrorCode};
 use process_manager::get_process_manager;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection::SqlxSqlitePoolConnection, EntityTrait, IntoActiveModel, QueryFilter};
-use uuid::Uuid;
 use tools::database::client::get_db;
 
 use crate::task::Column;
@@ -11,7 +10,7 @@ pub mod task;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Task {
     
-    pub uuid: String,
+    pub id: u32,
 
     pub task_name: String,
 
@@ -32,7 +31,7 @@ impl Task {
     pub fn from_database_model(model: &task::Model) -> Self {
         let args: Vec<String> = serde_json::from_str(&model.args).unwrap_or_default();
         Self {
-            uuid: model.uuid.clone(),
+            id: model.id.clone(),
             task_name: model.task_name.clone(),
             command: model.command.clone(),
             args,
@@ -45,7 +44,7 @@ impl Task {
 
     pub fn to_database_model(&self) -> task::Model {
         task::Model {
-            uuid: self.uuid.clone(),
+            id: self.id.clone(),
             task_name: self.task_name.clone(),
             command: self.command.clone(),
             args: serde_json::to_string(&self.args).unwrap_or_default(),
@@ -58,9 +57,9 @@ impl Task {
 }
 
 // 增
-pub async fn create_task_info(id: u128, task_name: String, command: String, args: Vec<String>, icon_url: String, keep_alive: bool, index: u32, associated_process: Option<u32>) {
+pub async fn create_task_info(id: u32, task_name: String, command: String, args: Vec<String>, icon_url: String, keep_alive: bool, index: u32, associated_process: Option<u32>) {
     let model = task::Model::new(
-        Uuid::from_u128(id).to_string(),
+        id,
         task_name,
         command,
         args,
@@ -70,6 +69,18 @@ pub async fn create_task_info(id: u128, task_name: String, command: String, args
         associated_process,
     );
     model.into_active_model().insert(get_db(task::Entity).await).await.unwrap();
+}
+
+pub async fn delete_task_info(id: u32) {
+    // 从数据库中删除 task_info
+    task::Entity::delete_by_id(id)
+        .exec(get_db(task::Entity).await).await.unwrap();
+}
+
+pub async fn update_task_info(task_info: Task) {
+    // 更新数据库中的 task_info
+    let new_model = (&task_info).to_database_model();
+    new_model.into_active_model().update(get_db(task::Entity).await).await.unwrap();
 }
 
 pub async fn get_all_task_infos() -> Result<Vec<Task>, SenkaError> {
@@ -82,8 +93,8 @@ pub async fn get_all_task_infos() -> Result<Vec<Task>, SenkaError> {
     Err(SenkaError::null())
 }
 
-pub async fn get_task_detail(uuid: String) -> Result<Task, SenkaError> {
-    let result = task::Entity::find_by_id(uuid)
+pub async fn get_task_detail(id: u32) -> Result<Task, SenkaError> {
+    let result = task::Entity::find_by_id(id)
         .one(get_db(task::Entity).await).await;
     if let Ok(Some(model)) = result {
         return Ok(Task::from_database_model(&model));
@@ -91,21 +102,9 @@ pub async fn get_task_detail(uuid: String) -> Result<Task, SenkaError> {
     Err(SenkaError::null())
 }
 
-pub async fn delete_task_info(uuid: String) {
-    // 从数据库中删除 task_info
-    task::Entity::delete_by_id(uuid)
-        .exec(get_db(task::Entity).await).await.unwrap();
-}
-
-pub async fn update_task_info(task_info: Task) {
-    // 更新数据库中的 task_info
-    let new_model = (&task_info).to_database_model();
-    new_model.into_active_model().update(get_db(task::Entity).await).await.unwrap();
-}
-
-pub async fn execute_task(uuid: String) -> Result<(), SenkaError> {
+pub async fn execute_task(id: u32, user_name: String) -> Result<(), SenkaError> {
     // 执行 task
-    match get_task_detail(uuid).await {
+    match get_task_detail(id).await {
         Ok(task) => {
             // 不是Task，则直接创建进程
             if !&task.keep_alive {
@@ -124,4 +123,8 @@ pub async fn execute_task(uuid: String) -> Result<(), SenkaError> {
         }
         Err(senka_error) => return Err(senka_error),
     }
+}
+
+pub async fn stop_task(id: u32, user_name: String) {
+
 }
