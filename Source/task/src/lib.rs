@@ -125,6 +125,7 @@ pub async fn execute_task(id: u32, user_name: String) -> Result<(), SenkaError> 
     }
 }
 
+// TODO 待整理需求
 pub async fn stop_task(id: u32, user_name: String) {
 
 }
