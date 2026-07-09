@@ -250,20 +250,9 @@ impl ProcessManager {
                             }
                             ProcessHandle::None => {}
                         }
-                        // 检查进程状态
-                        // 如果是None，说明进程没有正确创建，则需创建Process
-                        // 如果是Running则DONOTHING
-                        // 如果是Stopped则DONOTHING
-                        // 如果是Exited，则说明进程结束，如果这时检测到auto restart标志则需自动重启
-                        let mut do_restart = false;
-                        match process_info.status {
-                            ProcessStatus::None => do_restart = true,
-                            ProcessStatus::Exited(_) if process_info.auto_restart => do_restart = true,
-                            _ => {}
-                        }
-                        if do_restart {
-                            let _ = get_process_manager().restart_entry(&mut *process_info);
-                        }
+                        // 先处理输入输出，防止命令执行的太快直接退出
+                        // 此时先restart会替换stdin、stdout、stderr管道
+                        // 导致之前的输入输出丢失
                         // 处理stdin输入：从stdin_rx接收数据，spawn异步写入，不阻塞轮询
                         if let Some(ref mut dispatcher) = process_info.pipe_dispatcher {
                             if let Some(ref stdin) = dispatcher.stdin {
@@ -296,6 +285,20 @@ impl ProcessManager {
                                     _ => {}
                                 }
                             }
+                        }
+                        // 检查进程状态
+                        // 如果是None，说明进程没有正确创建，则需创建Process
+                        // 如果是Running则DONOTHING
+                        // 如果是Stopped则DONOTHING
+                        // 如果是Exited，则说明进程结束，如果这时检测到auto restart标志则需自动重启
+                        let mut do_restart = false;
+                        match process_info.status {
+                            ProcessStatus::None => do_restart = true,
+                            ProcessStatus::Exited(_) if process_info.auto_restart => do_restart = true,
+                            _ => {}
+                        }
+                        if do_restart {
+                            let _ = get_process_manager().restart_entry(&mut *process_info);
                         }
                     }
                 }
