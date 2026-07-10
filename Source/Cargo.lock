@@ -3693,6 +3693,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "user_manager"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "tools",
+]
+
+[[package]]
 name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
