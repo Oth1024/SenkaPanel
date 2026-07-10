@@ -578,6 +578,7 @@ name = "directory_monitoring"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "common",
  "libc",
  "notify",
  "once_cell",

@@ -2,7 +2,7 @@
 mod test {
     use std::{path::Path, time::Duration};
 
-    use directory_monitoring::{monitor_fs, show_fs_on_dir, subscribe_fs_changed_event};
+    use directory_monitoring::{show_fs_on_dir, subscribe_fs, unsubscribe_fs};
     use notify::Event;
     use tokio::{fs::{self, File}, time};
 
@@ -20,15 +20,30 @@ mod test {
 
     #[tokio::test]
     async fn test_monitoring() {
+        // 订阅文件变更事件（返回 broadcast::Receiver）
+        let mut rx = subscribe_fs(TEST_DIR).unwrap();
+
         // 添加一个任务，每隔5s创建、删除一个文件
         tokio::spawn(read_write_file());
-        // 注册文件监控以及回调
-        subscribe_fs_changed_event(TEST_DIR, "echo", echo_event_handled).unwrap();
-        // 启动文件监控（异步，不阻塞）
-        tokio::spawn(monitor_fs(TEST_DIR));
-        
+
+        // 接收文件变更事件
+        tokio::spawn(async move {
+            loop {
+                match rx.recv().await {
+                    Ok(event) => echo_event_handled(&event),
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        eprintln!("[test] lagged {} events", n);
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        });
+
         // 保持测试运行足够长的时间来观察效果
         tokio::time::sleep(Duration::from_secs(30)).await;
+
+        // 取消订阅
+        unsubscribe_fs(TEST_DIR);
     }
 
     async fn read_write_file() {
@@ -61,7 +76,7 @@ mod test {
     fn echo_event_handled(_: &Event) {
         unsafe {
             let current_count = COUNT.abs();
-            print!("On fs event handled, current count:{}\n", current_count);// 实际没有打印出来
+            print!("On fs event handled, current count:{}\n", current_count);
             COUNT += 1;
         }
     }

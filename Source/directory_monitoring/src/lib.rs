@@ -1,22 +1,30 @@
-use std::{collections::HashMap, fs::metadata, os::windows::fs::MetadataExt, path::Path, sync::Mutex};
+use std::{
+    collections::HashMap, fs::metadata, os::windows::fs::MetadataExt, path::Path,
+    sync::{atomic::{AtomicUsize, Ordering}, Mutex},
+};
 use chrono::{Duration, TimeZone, Utc};
 use notify::{Event, ReadDirectoryChangesWatcher, Watcher, recommended_watcher};
 use crate::def::file_info::{FileInfo, FileType};
 use os_info::{Type, get};
+use common::senka_error::SenkaError;
 use once_cell::sync::Lazy;
-use tokio::sync::mpsc;
+use tokio::sync::broadcast;
 
 pub mod def;
 
-static FS_WATCHER: Lazy<Mutex<HashMap<String, ReadDirectoryChangesWatcher>>> =
-    Lazy::new(||Mutex::new(HashMap::<String, ReadDirectoryChangesWatcher>::new()));
-
-pub fn get_fs_watcher() -> &'static Mutex<HashMap<String, ReadDirectoryChangesWatcher>> {
-    &FS_WATCHER
+/// 订阅状态：持有 broadcast sender、watcher、以及订阅者计数
+pub struct SubscriptionState {
+    sender: broadcast::Sender<Event>,
+    watcher: ReadDirectoryChangesWatcher,
+    subscriber_count: AtomicUsize,
 }
 
-static FS_WATCHER_EVENT_HANDLER: Lazy<Mutex<HashMap<String, HashMap<String, Box<dyn Fn(&Event) + Send + Sync>>>>> = 
-    Lazy::new(||Mutex::new(HashMap::new()));
+static FS_WATCHER: Lazy<Mutex<HashMap<String, SubscriptionState>>> =
+    Lazy::new(|| Mutex::new(HashMap::<String, SubscriptionState>::new()));
+
+pub fn get_fs_watcher() -> &'static Mutex<HashMap<String, SubscriptionState>> {
+    &FS_WATCHER
+}
 
 // 对外方法
 pub fn show_fs_on_dir(directory: &str) -> Vec<FileInfo> {
@@ -78,78 +86,53 @@ pub fn show_fs_on_dir(directory: &str) -> Vec<FileInfo> {
     result
 }
 
-/// 添加对一个路径的订阅
-pub async fn monitor_fs(directory: &str) {
-    let (tx, mut rx) = mpsc::channel::<Result<Event, _>>(100);
-    let mut watcher = recommended_watcher(move |res: Result<Event, _>| {
-        let _ = tx.try_send(res);
+/// 添加对一个路径的订阅，返回 broadcast::Receiver。
+/// 如果该路径已被订阅，则递增引用计数并返回新的 Receiver（clone），避免重复创建 watcher。
+pub fn subscribe_fs(directory: &str) -> Result<broadcast::Receiver<Event>, SenkaError> {
+    let mut map = get_fs_watcher().lock().unwrap();
+
+    // 已有订阅：递增计数，返回 clone receiver
+    if let Some(state) = map.get(directory) {
+        state.subscriber_count.fetch_add(1, Ordering::SeqCst);
+        return Ok(state.sender.subscribe());
+    }
+
+    // 新建订阅
+    let (tx, _) = broadcast::channel::<Event>(100);
+    let tx_clone = tx.clone();
+    let mut watcher = recommended_watcher(move |res: Result<Event, notify::Error>| {
+        match res {
+            Ok(event) => { let _ = tx_clone.send(event); },
+            // TODO: 记录到Logger
+            Err(e) => { eprintln!("[subscribe_fs] watch error: {:?}", e); },
+        }
     }).unwrap();
 
     let path = Path::new(directory);
     let _ = watcher.watch(path, notify::RecursiveMode::NonRecursive);
 
-    // 添加到订阅表方便取消订阅
-    get_fs_watcher().lock().unwrap().insert(String::from(directory), watcher);
+    let rx = tx.subscribe();
 
-    while let Some(res) = rx.recv().await {
-        if let Ok(event) = res {
-            on_fs_changed_event(directory, event);
-        }
-    }
+    map.insert(String::from(directory), SubscriptionState {
+        sender: tx,
+        watcher,
+        subscriber_count: AtomicUsize::new(1),
+    });
+
+    Ok(rx)
 }
 
-/// 取消并移除一个已经订阅的路径
-pub fn cancel_monitor_fs(directory: &str) {
-    if let Ok(mut watchers) = get_fs_watcher().lock() {
-        if watchers.contains_key(directory) {
-            // 取消订阅
-            let path = Path::new(directory);
-            watchers.get_mut(directory).unwrap().unwatch(path);
-            // 删除
-            watchers.remove(directory);
-        }
-    }
-}
-
-pub fn subscribe_fs_changed_event<F>(directory: &str, func_id: &str, func: F) -> Result<(), ()>
-    where F: Fn(&Event) + Send + Sync + 'static {
-    let mut hashmap = FS_WATCHER_EVENT_HANDLER.lock().unwrap();
-    if !hashmap.contains_key(directory) {
-        let mut inner_hashmap = HashMap::<String, Box<dyn Fn(&Event) + Send + Sync>>::new();
-        inner_hashmap.insert(String::from(func_id), Box::new(func));
-        hashmap.insert(String::from(directory), inner_hashmap);
-        return Ok(());
-    }
-    else {
-        let inner_hashmap = hashmap.get_mut(directory).unwrap();
-        if inner_hashmap.contains_key(func_id) {
-            return Err(());
-        }
-        else {
-            inner_hashmap.insert(String::from(func_id), Box::new(func));
-            return Ok(());
-        }
-    }
-}
-
-pub fn unsubscribe_fs_changed_event(directory: &str, func_id: &str) {
-    let mut hashmap = FS_WATCHER_EVENT_HANDLER.lock().unwrap();
-    if hashmap.contains_key(directory) {
-        if hashmap.contains_key(func_id) {
-            hashmap.remove(func_id);
-        }
-    }
-}
-
-// 处理事件
-fn on_fs_changed_event(directory: &str, event: Event) {
-    let hashmap = FS_WATCHER_EVENT_HANDLER.lock().unwrap();
-    if hashmap.contains_key(directory) {
-        let inner_hashmap = hashmap.get(directory).unwrap();
-        let funcs = inner_hashmap.values().enumerate();
-        for func in funcs {
-            let arg = &event;
-            func.1(arg);
+/// 取消对一个路径的订阅。递减引用计数，仅当无其他订阅者时才停止 watch 并移除。
+pub fn unsubscribe_fs(directory: &str) {
+    if let Ok(mut map) = get_fs_watcher().lock() {
+        if let Some(state) = map.get_mut(directory) {
+            let prev = state.subscriber_count.fetch_sub(1, Ordering::SeqCst);
+            if prev == 1 {
+                // 最后一个订阅者，取消 watch 并移除
+                let path = Path::new(directory);
+                state.watcher.unwatch(path).ok();
+                map.remove(directory);
+            }
         }
     }
 }
