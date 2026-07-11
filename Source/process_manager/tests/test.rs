@@ -13,10 +13,9 @@ use tokio::sync::broadcast;
         manager.start_monitor().await;
 
         let id = manager.start(
-            "cmd".to_string(),
-            vec!["/c".to_string(), "echo hello world".to_string()],
-            true,
-            "test".to_string(),
+            "cmd",
+            vec!["/c", "echo hello world"],
+            true
         )
         .unwrap();
 

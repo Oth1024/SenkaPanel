@@ -80,8 +80,6 @@ pub struct ProcessInfo {
     pub command: String,
     pub args: Vec<String>,
     pub auto_restart: bool,
-    pub creator: String,
-    pub created_time: DateTime<Utc>,
 
     process: ProcessHandle,
     stdin_tx: Option<mpsc::Sender<String>>,
@@ -95,10 +93,9 @@ impl ProcessInfo {
     /// 单独使用new方法不会启动监控
     /// 也不会订阅输入输出管道
     pub fn new(
-        command: String, 
-        args: Vec<String>, 
-        auto_restart: bool, 
-        creator: String,
+        command: impl Into<String>, 
+        args: Vec<impl Into<String>>, 
+        auto_restart: bool
     ) -> Self {
         // 构造时创建消息通道，后续monitor循环中使用
         let (stdin_tx, stdin_rx) = mpsc::channel::<String>(64);
@@ -106,11 +103,9 @@ impl ProcessInfo {
         let (stderr_tx, stderr_rx) = broadcast::channel::<String>(64);
         ProcessInfo {
             status: ProcessStatus::None,
-            command,
-            args,
+            command: command.into(),
+            args: args.into_iter().map(|arg| arg.into()).collect(),
             auto_restart,
-            creator,
-            created_time: Utc::now(),
             process: ProcessHandle::None,
             stdin_tx: Some(stdin_tx),
             stdout_rx: Some(stdout_rx),
@@ -123,17 +118,17 @@ impl ProcessInfo {
     /// 适用于需要管理进程的生命周期，但是不关系进程的输入输出的情况
     pub fn from_dued(
         pid: u32,
-        command: String,
-        args: Vec<String>,
-         auto_restart: bool,
-         creator: String) -> Self {
+        command: impl Into<String>,
+        args: Vec<impl Into<String>>,
+         auto_restart: bool) -> Self {
         let pid_entitiy = Pid::from_u32(pid);
         let mut system = System::new();
         system.refresh_all();
         let process = system.process(pid_entitiy);
         let status = if process.is_some() { ProcessStatus::Running } else { ProcessStatus::None };
-        let mut process_info = ProcessInfo::new(command, args, auto_restart, creator);
+        let mut process_info = ProcessInfo::new(command, args, auto_restart);
         process_info.process = ProcessHandle::Dued(pid_entitiy);
+        process_info.status = status;
         process_info
     }
 
@@ -324,9 +319,9 @@ impl ProcessManager {
         }
     }
 
-    pub fn start(&self, command: String, args: Vec<String>, auto_restart:bool, creator: String) -> Result<u32, SenkaError> {
+    pub fn start(&self, command: impl Into<String>, args: Vec<impl Into<String>>, auto_restart:bool) -> Result<u32, SenkaError> {
         let id = self.process_index.fetch_add(1, Ordering::SeqCst);
-        let process_info = ProcessInfo::new(command, args, auto_restart, creator);
+        let process_info = ProcessInfo::new(command, args, auto_restart);
         self.process_infos.insert(id, process_info);
         Ok(id)
     }
